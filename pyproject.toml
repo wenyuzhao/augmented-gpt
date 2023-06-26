@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "augmented_gpt"
+version = "0.1.0"
+description = "Argumented ChatGPT with functions"
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "augmented_gpt"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+openai = "^0.27.8"
+pytest = "^7.3.2"
+python-dotenv = "^1.0.0"
+pandas = "^2.0.2"
+numpy = "^1.24.3"
+matplotlib = "^3.7.1"
+plotly = "^5.15.0"
+scipy = "^1.10.1"
+scikit-learn = "^1.2.2"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.23.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
