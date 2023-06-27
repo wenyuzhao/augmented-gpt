@@ -1,11 +1,14 @@
 [tool.poetry]
 name = "augmented_gpt"
 version = "0.1.0"
-description = "Argumented ChatGPT with functions"
+description = "ChatGPT API wrapper, argumented with functions"
+# documentation = "https://github.com/wenyuzhao/augmented-gpt"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/wenyuzhao/augmented-gpt"
 packages = [{include = "augmented_gpt"}]
+keywords = ["chatgpt", "gpt"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
