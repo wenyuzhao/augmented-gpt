@@ -5,16 +5,28 @@ import inspect
 from inspect import Parameter
 import openai
 import logging
+import os
+
+openai_api_key = None
 
 
 class AugmentedGPT:
+    @staticmethod
+    def set_api_key(key: str):
+        global openai_api_key
+        openai_api_key = key
+
     def __init__(
         self,
         functions: List[Callable] = [],
         plugins: List["Plugin"] = [],
         debug=False,
     ):
-        openai.api_key = dotenv_values()["OPENAI_API_KEY"]
+        api_key = dotenv_values().get(
+            "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", openai_api_key)
+        )
+        assert api_key is not None, "Missing OPENAI_API_KEY"
+        openai.api_key = api_key
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.__functions: Dict[str, Tuple[Any, Callable]] = {}
