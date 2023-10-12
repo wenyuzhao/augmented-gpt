@@ -19,11 +19,38 @@ def get_openai_api_key():
     global openai_api_key
     return openai_api_key
 
+@dataclass
+class GPTOptions:
+    frequency_penalty: Optional[float] = None
+    logit_bias: Optional[Dict[str, int]] = None
+    max_tokens: Optional[int] = None
+    n: Optional[int] = None
+    presence_penalty: Optional[float] = None
+    stop: Optional[str] | List[str] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    timeout: Optional[float] = None
+
+    def as_kwargs(self) -> dict[str, Any]:
+        args = {
+            "frequency_penalty": self.frequency_penalty,
+            "logit_bias": self.logit_bias,
+            "max_tokens": self.max_tokens,
+            "n": self.n,
+            "presence_penalty": self.presence_penalty,
+            "stop": self.stop,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "timeout": self.timeout,
+        }
+        return {k: v for k, v in args.items() if v is not None}
+
 class AugmentedGPT:
     @staticmethod
     def set_api_key(key: str):
         global openai_api_key
         openai_api_key = key
+
     def __init__(
         self,
         model: str | Literal[
@@ -42,13 +69,16 @@ class AugmentedGPT:
         functions: List[Callable[..., Any]] = [],
         plugins: Sequence["Plugin"] = [],
         debug: bool = False,
+        gpt_options: GPTOptions = GPTOptions(),
     ):
+        self.gpt_options = gpt_options
         self.model = model
         api_key = dotenv_values().get(
             "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", openai_api_key)
         )
         assert api_key is not None, "Missing OPENAI_API_KEY"
         openai.api_key = api_key
+        self.client = openai.OpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
@@ -114,6 +144,7 @@ class AugmentedGPT:
                 functions=functions,
                 function_call="auto",
                 stream=True,
+                **self.gpt_options.as_kwargs(),
             )
             return MessageStream(response)
         else:
@@ -122,6 +153,8 @@ class AugmentedGPT:
                 messages=msgs,
                 functions=functions,
                 function_call="auto",
+                stream=False,
+                **self.gpt_options.as_kwargs(),
             )
             return Message.from_chat_completion_message(response.choices[0].message)
 

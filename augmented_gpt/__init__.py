@@ -8,7 +8,7 @@ from .decorators import param, function
 from .message import MessageStream, Message
 from .plugins import Plugin
 from . import plugins
-from .augmented_gpt import AugmentedGPT
+from .augmented_gpt import AugmentedGPT, GPTOptions
 
 __all__ = [
     "param",
@@ -18,4 +18,5 @@ __all__ = [
     "Plugin",
     "plugins",
     "AugmentedGPT",
+    "GPTOptions"
 ]
