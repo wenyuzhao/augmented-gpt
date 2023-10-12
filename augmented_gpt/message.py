@@ -3,7 +3,11 @@ import json
 from dataclasses import dataclass
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 import openai
-from openai.types.chat import  ChatCompletionChunk, ChatCompletionMessageParam, ChatCompletionMessage
+from openai.types.chat import (
+    ChatCompletionChunk,
+    ChatCompletionMessageParam,
+    ChatCompletionMessage,
+)
 
 JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
 
@@ -12,6 +16,7 @@ JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | 
 class FunctionCall:
     name: str
     arguments: JSON
+
 
 @dataclass
 class Message:
@@ -40,8 +45,8 @@ class Message:
     """
 
     # def __post_init__(self):
-        # if self.function_call is not None and isinstance(self.function_call.arguments, str):
-        #     self.function_call = json.loads(json.dumps((self.function_call)))
+    # if self.function_call is not None and isinstance(self.function_call.arguments, str):
+    #     self.function_call = json.loads(json.dumps((self.function_call)))
 
     def to_json(self) -> JSON:
         data: JSON = {
@@ -59,12 +64,19 @@ class Message:
 
     def to_chat_completion_message_param(self) -> ChatCompletionMessageParam:
         if self.function_call is not None:
-            return ChatCompletionMessageParam(content=self.content, role=self.role, name=self.name or self.function_call.name, function_call={
-                "name": self.function_call.name,
-                "arguments": json.dumps(self.function_call.arguments),
-            })
+            return ChatCompletionMessageParam(
+                content=self.content,
+                role=self.role,
+                name=self.name or self.function_call.name,
+                function_call={
+                    "name": self.function_call.name,
+                    "arguments": json.dumps(self.function_call.arguments),
+                },
+            )
         elif self.name is not None:
-            return ChatCompletionMessageParam(content=self.content, role=self.role, name=self.name)
+            return ChatCompletionMessageParam(
+                content=self.content, role=self.role, name=self.name
+            )
         else:
             return ChatCompletionMessageParam(content=self.content, role=self.role)
 
@@ -77,14 +89,18 @@ class Message:
             function_call=FunctionCall(
                 name=m.function_call.name,
                 arguments=json.loads(m.function_call.arguments),
-            ) if m.function_call is not None else None,
+            )
+            if m.function_call is not None
+            else None,
         )
 
 
-
-
 class MessageStream:
-    def __init__(self, response: Optional[openai.Stream[ChatCompletionChunk]], final_message: Optional[Message] = None):
+    def __init__(
+        self,
+        response: Optional[openai.Stream[ChatCompletionChunk]],
+        final_message: Optional[Message] = None,
+    ):
         self.__response = response
         self.__message = Message(role="assistant")
         self.__final_message = final_message

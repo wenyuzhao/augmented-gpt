@@ -18,5 +18,5 @@ __all__ = [
     "Plugin",
     "plugins",
     "AugmentedGPT",
-    "GPTOptions"
+    "GPTOptions",
 ]

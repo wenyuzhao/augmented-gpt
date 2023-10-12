@@ -1,4 +1,14 @@
-from typing import Callable, Dict, Generator, List, Sequence, Tuple, Any, overload, TYPE_CHECKING
+from typing import (
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Sequence,
+    Tuple,
+    Any,
+    overload,
+    TYPE_CHECKING,
+)
 
 from .message import *
 from dotenv import dotenv_values
@@ -10,14 +20,17 @@ import os
 from openai.types.chat import ChatCompletionMessageParam
 
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from .plugins import Plugin
 
 openai_api_key = None
 
+
 def get_openai_api_key():
     global openai_api_key
     return openai_api_key
+
 
 @dataclass
 class GPTOptions:
@@ -45,6 +58,7 @@ class GPTOptions:
         }
         return {k: v for k, v in args.items() if v is not None}
 
+
 class AugmentedGPT:
     @staticmethod
     def set_api_key(key: str):
@@ -53,19 +67,20 @@ class AugmentedGPT:
 
     def __init__(
         self,
-        model: str | Literal[
-                "gpt-4",
-                "gpt-4-0314",
-                "gpt-4-0613",
-                "gpt-4-32k",
-                "gpt-4-32k-0314",
-                "gpt-4-32k-0613",
-                "gpt-3.5-turbo",
-                "gpt-3.5-turbo-16k",
-                "gpt-3.5-turbo-0301",
-                "gpt-3.5-turbo-0613",
-                "gpt-3.5-turbo-16k-0613",
-            ] = "gpt-4",
+        model: str
+        | Literal[
+            "gpt-4",
+            "gpt-4-0314",
+            "gpt-4-0613",
+            "gpt-4-32k",
+            "gpt-4-32k-0314",
+            "gpt-4-32k-0613",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-16k",
+            "gpt-3.5-turbo-0301",
+            "gpt-3.5-turbo-0613",
+            "gpt-3.5-turbo-16k-0613",
+        ] = "gpt-4",
         functions: List[Callable[..., Any]] = [],
         plugins: Sequence["Plugin"] = [],
         debug: bool = False,
@@ -127,16 +142,24 @@ class AugmentedGPT:
         return Message(role="function", name=func_name, content=result)
 
     @overload
-    def __chat_completion_request(self, messages: List[Message], stream: Literal[False]) -> Message:
+    def __chat_completion_request(
+        self, messages: List[Message], stream: Literal[False]
+    ) -> Message:
         ...
 
     @overload
-    def __chat_completion_request(self, messages: List[Message], stream: Literal[True]) -> MessageStream:
+    def __chat_completion_request(
+        self, messages: List[Message], stream: Literal[True]
+    ) -> MessageStream:
         ...
 
-    def __chat_completion_request(self, messages: List[Message], stream: bool) -> Message | MessageStream:
+    def __chat_completion_request(
+        self, messages: List[Message], stream: bool
+    ) -> Message | MessageStream:
         functions = [x for (x, _) in self.__functions.values()]
-        msgs: List[ChatCompletionMessageParam] = [m.to_chat_completion_message_param() for m in messages]
+        msgs: List[ChatCompletionMessageParam] = [
+            m.to_chat_completion_message_param() for m in messages
+        ]
         if stream:
             response = openai.chat.completions.create(
                 model=self.model,
@@ -159,11 +182,18 @@ class AugmentedGPT:
             return Message.from_chat_completion_message(response.choices[0].message)
 
     @overload
-    def chat_completion(self, messages: List[Message], stream: Literal[False] = False, context_free: bool = False) -> Generator[Message, None, None]:
+    def chat_completion(
+        self,
+        messages: List[Message],
+        stream: Literal[False] = False,
+        context_free: bool = False,
+    ) -> Generator[Message, None, None]:
         ...
 
     @overload
-    def chat_completion(self, messages: List[Message], stream: Literal[True], context_free: bool = False) -> Generator[MessageStream, None, None]:
+    def chat_completion(
+        self, messages: List[Message], stream: Literal[True], context_free: bool = False
+    ) -> Generator[MessageStream, None, None]:
         ...
 
     def chat_completion(

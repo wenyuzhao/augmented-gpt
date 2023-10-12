@@ -21,17 +21,20 @@ def param(
 ) -> Any:
     return _Param(description, default, enum)
 
+
 @overload
 def function(description: Callable[..., Any]) -> Callable[..., Any]:
     ...
+
 
 @overload
 def function(
     description: Optional[str],
     name: Optional[str] = None,
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[Dict[str, Any]] = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     ...
+
 
 def function(
     description: Union[Optional[str], Callable[..., Any]] = None,

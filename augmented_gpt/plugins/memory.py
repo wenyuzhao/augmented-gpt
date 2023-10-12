@@ -6,11 +6,12 @@ import json
 import pandas as pd
 from . import Plugin
 import os
-from openai.resources.embeddings  import Embeddings # get_embedding, cosine_similarity
+from openai.resources.embeddings import Embeddings  # get_embedding, cosine_similarity
 import numpy as np
 import datetime
-from sklearn.metrics.pairwise import cosine_similarity # type: ignore
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 from ..augmented_gpt import get_openai_api_key
+
 
 class MemoryPlugin(Plugin):
     def __init__(self, data_file: str = "_memory-with-embedding.csv"):
@@ -18,7 +19,7 @@ class MemoryPlugin(Plugin):
 
     def __load_data(self) -> pd.DataFrame:
         return (
-            pd.read_csv(self.data_file) # type: ignore
+            pd.read_csv(self.data_file)  # type: ignore
             if os.path.isfile(self.data_file) and os.path.getsize(self.data_file) > 0
             else pd.DataFrame(columns=["timestamp", "text", "embedding"])
         )
@@ -31,7 +32,12 @@ class MemoryPlugin(Plugin):
 
     def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
-        return Embeddings(openai.Client(api_key=get_openai_api_key())).create(input=[text], model=model).data[0].embedding
+        return (
+            Embeddings(openai.Client(api_key=get_openai_api_key()))
+            .create(input=[text], model=model)
+            .data[0]
+            .embedding
+        )
 
     def clear_memory(self):
         f = open(self.data_file, "w")
@@ -50,8 +56,10 @@ class MemoryPlugin(Plugin):
         embedding = self.__get_embedding(query)
         df: Any = self.__load_data()
         df["embedding"] = df.embedding.apply(eval).apply(np.array)
+
         def compute_cosine_similarity(x: Any) -> float:
-            return cosine_similarity([x], [embedding])[0][0] # type: ignore
+            return cosine_similarity([x], [embedding])[0][0]  # type: ignore
+
         df["similarity"] = df.embedding.apply(compute_cosine_similarity)
         data = df.sort_values("similarity", ascending=False)
         results = ""

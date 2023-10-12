@@ -24,7 +24,11 @@ class Plugin:
         self.logger = gpt.logger
 
     def _log_call(self, name: str, *args: Any, **kwargs: Any):
-        msg = f"➡️ {name}: " + ", ".join(str(a) for a in args) + ", ".join((f"{k}={v}" for k, v in kwargs.items()))
+        msg = (
+            f"➡️ {name}: "
+            + ", ".join(str(a) for a in args)
+            + ", ".join((f"{k}={v}" for k, v in kwargs.items()))
+        )
         self.logger.debug(msg)
 
     def on_new_chat_message(self, msg: Message):
@@ -36,6 +40,7 @@ class TimestampPlugin(Plugin):
     def get_current_timestamp(self):
         """Get the current tempstamp in ISO format"""
         return datetime.datetime.now().isoformat()
+
 
 from .memory import *
 from .calc import *
