@@ -9,6 +9,7 @@ from logging import Logger
 
 class Plugin:
     logger: Logger
+    gpt: "AugmentedGPT"
 
     def register(self, gpt: "AugmentedGPT"):
         for _n, method in inspect.getmembers(self, predicate=inspect.ismethod):
@@ -22,14 +23,7 @@ class Plugin:
                 func_info["name"] = clsname + "-" + func_info["name"]
             gpt.add_function(method)
         self.logger = gpt.logger
-
-    def _log_call(self, name: str, *args: Any, **kwargs: Any):
-        msg = (
-            f"➡️ {name}: "
-            + ", ".join(str(a) for a in args)
-            + ", ".join((f"{k}={v}" for k, v in kwargs.items()))
-        )
-        self.logger.debug(msg)
+        self.gpt = gpt
 
     def on_new_chat_message(self, msg: Message):
         ...

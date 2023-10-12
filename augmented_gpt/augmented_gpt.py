@@ -27,11 +27,6 @@ if TYPE_CHECKING:
 openai_api_key = None
 
 
-def get_openai_api_key():
-    global openai_api_key
-    return openai_api_key
-
-
 @dataclass
 class GPTOptions:
     frequency_penalty: Optional[float] = None
@@ -85,10 +80,11 @@ class AugmentedGPT:
         plugins: Sequence["Plugin"] = [],
         debug: bool = False,
         gpt_options: GPTOptions = GPTOptions(),
+        api_key: Optional[str] = None,
     ):
         self.gpt_options = gpt_options
         self.model = model
-        api_key = dotenv_values().get(
+        api_key = api_key or dotenv_values().get(
             "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", openai_api_key)
         )
         assert api_key is not None, "Missing OPENAI_API_KEY"
@@ -136,6 +132,11 @@ class AugmentedGPT:
         func = self.__functions[func_name][1]
         arguments = function_call.arguments
         args, kw_args = self.__filter_args(func, arguments)
+        self.logger.debug(
+            f"➡️ {func_name}: "
+            + ", ".join(str(a) for a in args)
+            + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
+        )
         result = func(*args, **kw_args)
         if not isinstance(result, str):
             result = json.dumps(result)
@@ -161,7 +162,7 @@ class AugmentedGPT:
             m.to_chat_completion_message_param() for m in messages
         ]
         if stream:
-            response = openai.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=msgs,
                 functions=functions,
@@ -171,7 +172,7 @@ class AugmentedGPT:
             )
             return MessageStream(response)
         else:
-            response = openai.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=msgs,
                 functions=functions,

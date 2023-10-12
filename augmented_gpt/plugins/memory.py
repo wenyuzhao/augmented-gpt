@@ -1,16 +1,13 @@
 from ..decorators import *
 from typing import Any
 from ..message import Message
-import openai
 import json
 import pandas as pd
 from . import Plugin
 import os
-from openai.resources.embeddings import Embeddings  # get_embedding, cosine_similarity
 import numpy as np
 import datetime
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
-from ..augmented_gpt import get_openai_api_key
 
 
 class MemoryPlugin(Plugin):
@@ -33,8 +30,7 @@ class MemoryPlugin(Plugin):
     def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
         return (
-            Embeddings(openai.Client(api_key=get_openai_api_key()))
-            .create(input=[text], model=model)
+            self.gpt.client.embeddings.create(input=[text], model=model)
             .data[0]
             .embedding
         )
@@ -52,7 +48,6 @@ class MemoryPlugin(Plugin):
         The search results are in descending order in importance. Always respect to the top results.
         If you're unsure about some past events or some knowledge, always check the memory first as you may forgot it.
         """
-        self._log_call("search_from_memory", query)
         embedding = self.__get_embedding(query)
         df: Any = self.__load_data()
         df["embedding"] = df.embedding.apply(eval).apply(np.array)
@@ -78,7 +73,6 @@ class MemoryPlugin(Plugin):
         content: str = param("The content to remember in the memory"),
     ):
         """Actively remember some information as part of the long-term memory, if it is important."""
-        self._log_call("remember", content)
         self.__save_new_data(content)
         return "done."
 
