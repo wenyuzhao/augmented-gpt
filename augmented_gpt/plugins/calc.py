@@ -1,5 +1,4 @@
 from ..decorators import *
-from typing import *
 from . import Plugin
 
 

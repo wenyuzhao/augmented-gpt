@@ -1,38 +1,37 @@
 from ..decorators import *
-from typing import *
+from typing import Any
 from ..message import Message
 import openai
 import json
 import pandas as pd
 from . import Plugin
 import os
-from openai.embeddings_utils import get_embedding, cosine_similarity
+from openai.resources.embeddings  import Embeddings # get_embedding, cosine_similarity
 import numpy as np
 import datetime
-
+from sklearn.metrics.pairwise import cosine_similarity # type: ignore
+from ..augmented_gpt import get_openai_api_key
 
 class MemoryPlugin(Plugin):
     def __init__(self, data_file: str = "_memory-with-embedding.csv"):
         self.data_file = data_file
 
-    def __load_data(self):
+    def __load_data(self) -> pd.DataFrame:
         return (
-            pd.read_csv(self.data_file)
+            pd.read_csv(self.data_file) # type: ignore
             if os.path.isfile(self.data_file) and os.path.getsize(self.data_file) > 0
             else pd.DataFrame(columns=["timestamp", "text", "embedding"])
         )
 
     def __save_new_data(self, text: str):
-        df = self.__load_data()
+        df: Any = self.__load_data()
         embedding = self.__get_embedding(text, model="text-embedding-ada-002")
         df.loc[len(df.index)] = [datetime.datetime.now().isoformat(), text, embedding]
         df.to_csv(self.data_file, index=False)
 
-    def __get_embedding(self, text, model="text-embedding-ada-002"):
+    def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
-        return openai.Embedding.create(input=[text], model=model)["data"][0][
-            "embedding"
-        ]
+        return Embeddings(openai.Client(api_key=get_openai_api_key())).create(input=[text], model=model).data[0].embedding
 
     def clear_memory(self):
         f = open(self.data_file, "w")
@@ -49,13 +48,15 @@ class MemoryPlugin(Plugin):
         """
         self._log_call("search_from_memory", query)
         embedding = self.__get_embedding(query)
-        df = self.__load_data()
+        df: Any = self.__load_data()
         df["embedding"] = df.embedding.apply(eval).apply(np.array)
-        df["similarity"] = df.embedding.apply(lambda x: cosine_similarity(x, embedding))
+        def compute_cosine_similarity(x: Any) -> float:
+            return cosine_similarity([x], [embedding])[0][0] # type: ignore
+        df["similarity"] = df.embedding.apply(compute_cosine_similarity)
         data = df.sort_values("similarity", ascending=False)
         results = ""
         n = 0
-        for index, row in data.iterrows():
+        for _index, row in data.iterrows():
             results += "TIMESTAMP: " + row["timestamp"] + "\n"
             results += "CONTENT:\n" + row["text"] + "\n\n---\n\n"
             if n >= 2:

@@ -1,4 +1,6 @@
 import inspect
+
+from ..augmented_gpt import AugmentedGPT
 from ..decorators import *
 from ..message import Message
 import datetime
@@ -9,7 +11,7 @@ class Plugin:
     logger: Logger
 
     def register(self, gpt: "AugmentedGPT"):
-        for n, method in inspect.getmembers(self, predicate=inspect.ismethod):
+        for _n, method in inspect.getmembers(self, predicate=inspect.ismethod):
             if not hasattr(method, "gpt_function_call_info"):
                 continue
             func_info = getattr(method, "gpt_function_call_info")
@@ -21,8 +23,8 @@ class Plugin:
             gpt.add_function(method)
         self.logger = gpt.logger
 
-    def _log_call(self, name: str, *args, **kwargs):
-        msg = f"➡️ {name}: " + ", ".join(args) + ", ".join((f"{k}={v}" for k, v in kwargs.items()))
+    def _log_call(self, name: str, *args: Any, **kwargs: Any):
+        msg = f"➡️ {name}: " + ", ".join(str(a) for a in args) + ", ".join((f"{k}={v}" for k, v in kwargs.items()))
         self.logger.debug(msg)
 
     def on_new_chat_message(self, msg: Message):

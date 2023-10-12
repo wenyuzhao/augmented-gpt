@@ -1,6 +1,5 @@
-from typing import *
+from typing import Callable, Dict, List, Union, Any, Optional, overload
 import inspect
-from inspect import Parameter
 
 
 class _Param:
@@ -22,17 +21,28 @@ def param(
 ) -> Any:
     return _Param(description, default, enum)
 
+@overload
+def function(description: Callable[..., Any]) -> Callable[..., Any]:
+    ...
+
+@overload
+def function(
+    description: Optional[str],
+    name: Optional[str] = None,
+    parameters: Optional[Dict[str, Any]] = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    ...
 
 def function(
-    description: Optional[str] = None,
+    description: Union[Optional[str], Callable[..., Any]] = None,
     name: Optional[str] = None,
     parameters: Optional[Dict[str, Any]] = None,
 ):
-    def decorator_func(callable: Callable):
+    def decorator_func(callable: Callable[..., Any]) -> Callable[..., Any]:
         # Get function name
         fname = name if name is not None else callable.__name__
         # Get parameter info
-        params = {
+        params: Any = {
             "type": "object",
             "properties": {},
             "required": [],
@@ -52,7 +62,7 @@ def function(
                 case x if x == int or x == Optional[int]:
                     required = x == int
                     prop["type"] = "integer"
-                case other:
+                case _other:
                     assert (
                         False
                     ), f"Invalid type annotation for parameter `{pname}` in function {fname}"
