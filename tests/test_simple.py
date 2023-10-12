@@ -1,7 +1,6 @@
 from augmented_gpt import AugmentedGPT, Message, param, function
 from augmented_gpt.plugins import *
-from typing import *
-import json
+from typing import Optional
 
 
 @function
