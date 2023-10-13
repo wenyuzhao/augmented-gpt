@@ -161,25 +161,19 @@ class AugmentedGPT:
         msgs: List[ChatCompletionMessageParam] = [
             m.to_chat_completion_message_param() for m in messages
         ]
+        args: Any = {
+            "model": self.model,
+            "messages": msgs,
+            **self.gpt_options.as_kwargs(),
+        }
+        if len(functions) > 0:
+            args["functions"] = functions
+            args["function_call"] = "auto"
         if stream:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=msgs,
-                functions=functions,
-                function_call="auto",
-                stream=True,
-                **self.gpt_options.as_kwargs(),
-            )
+            response = self.client.chat.completions.create(**args, stream=True)
             return MessageStream(response)
         else:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=msgs,
-                functions=functions,
-                function_call="auto",
-                stream=False,
-                **self.gpt_options.as_kwargs(),
-            )
+            response = self.client.chat.completions.create(**args, stream=False)
             return Message.from_chat_completion_message(response.choices[0].message)
 
     @overload
