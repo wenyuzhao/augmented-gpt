@@ -182,7 +182,8 @@ class AugmentedGPT:
             if not isinstance(result, str):
                 result = json.dumps(result)
             return Message(role=Role.FUNCTION, name=func_name, content=result)
-        except Exception:
+        except Exception as e:
+            print(e)
             return Message(
                 role=Role.FUNCTION,
                 name=func_name,
