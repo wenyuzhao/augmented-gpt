@@ -37,7 +37,8 @@ def test_weather_and_memory_plugin():
     response = gpt.chat_completion(
         [
             Message(
-                role="user", content="When did I ask you for the weather in boston?"
+                role="user",
+                content="What was your response when I asked you about the weather in Boston?",
             ),
         ]
     )

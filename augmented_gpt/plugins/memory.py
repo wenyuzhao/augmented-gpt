@@ -40,7 +40,7 @@ class MemoryPlugin(Plugin):
         f.close()
 
     @function
-    def search_from_memory(
+    async def search_from_memory(
         self,
         query: str = param("The query of the search"),
     ):
@@ -48,7 +48,7 @@ class MemoryPlugin(Plugin):
         The search results are in descending order in importance. Always respect to the top results.
         If you're unsure about some past events or some knowledge, always check the memory first as you may forgot it.
         """
-        embedding = self.__get_embedding(query)
+        embedding = await self.__get_embedding(query)
         df: Any = self.__load_data()
         df["embedding"] = df.embedding.apply(eval).apply(np.array)
 
