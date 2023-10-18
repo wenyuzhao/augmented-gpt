@@ -135,7 +135,7 @@ class AugmentedGPT:
             p.register(self)
             self.__plugins[clsname] = p
         self.__prologue = prologue or []
-        self.history: List[Message] = prologue or []
+        self.history: List[Message] = [m for m in self.__prologue] or []
 
     def reset(self):
         self.history = [m for m in self.__prologue]
@@ -209,6 +209,7 @@ class AugmentedGPT:
         msgs: List[ChatCompletionMessageParam] = [
             m.to_chat_completion_message_param() for m in messages
         ]
+        print(msgs)
         args: Any = {
             "model": self.model,
             "messages": msgs,
