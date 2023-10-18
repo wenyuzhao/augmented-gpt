@@ -134,7 +134,11 @@ class AugmentedGPT:
                 clsname = clsname[:-6]
             p.register(self)
             self.__plugins[clsname] = p
+        self.__prologue = prologue or []
         self.history: List[Message] = prologue or []
+
+    def reset(self):
+        self.history = [m for m in self.__prologue]
 
     def get_plugin(self, name: str) -> "Plugin":
         return self.__plugins[name]
@@ -161,22 +165,29 @@ class AugmentedGPT:
 
     async def __call_function(self, function_call: FunctionCall) -> Message:
         func_name = function_call.name
-        func = self.__functions[func_name][1]
-        arguments = function_call.arguments
-        args, kw_args = self.__filter_args(func, arguments)
-        self.logger.debug(
-            f"➡️ {func_name}: "
-            + ", ".join(str(a) for a in args)
-            + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
-        )
-        result_or_coroutine = func(*args, **kw_args)
-        if inspect.iscoroutine(result_or_coroutine):
-            result = await result_or_coroutine
-        else:
-            result = result_or_coroutine
-        if not isinstance(result, str):
-            result = json.dumps(result)
-        return Message(role=Role.FUNCTION, name=func_name, content=result)
+        try:
+            func = self.__functions[func_name][1]
+            arguments = function_call.arguments
+            args, kw_args = self.__filter_args(func, arguments)
+            self.logger.debug(
+                f"➡️ {func_name}: "
+                + ", ".join(str(a) for a in args)
+                + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
+            )
+            result_or_coroutine = func(*args, **kw_args)
+            if inspect.iscoroutine(result_or_coroutine):
+                result = await result_or_coroutine
+            else:
+                result = result_or_coroutine
+            if not isinstance(result, str):
+                result = json.dumps(result)
+            return Message(role=Role.FUNCTION, name=func_name, content=result)
+        except Exception:
+            return Message(
+                role=Role.FUNCTION,
+                name=func_name,
+                content=f"Failed to execute function `{func_name}`. Please retry.",
+            )
 
     @overload
     async def __chat_completion_request(
