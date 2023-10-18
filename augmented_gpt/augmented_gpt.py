@@ -209,7 +209,6 @@ class AugmentedGPT:
         msgs: List[ChatCompletionMessageParam] = [
             m.to_chat_completion_message_param() for m in messages
         ]
-        print(msgs)
         args: Any = {
             "model": self.model,
             "messages": msgs,
