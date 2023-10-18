@@ -1,4 +1,4 @@
-from typing import Literal, Optional, TypeAlias, cast, Mapping, Sequence, Any
+from typing import Optional, TypeAlias, cast, Mapping, Sequence, Any
 import json
 from dataclasses import dataclass
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
@@ -113,6 +113,17 @@ class Message:
             else None,
         )
 
+    async def __aiter__(self):
+        if self.content is not None:
+            yield self.content
+
+    def __iter__(self):
+        if self.content is not None:
+            yield self.content
+
+    def message(self) -> "Message":
+        return self
+
 
 class MessageStream:
     def __init__(
@@ -152,11 +163,10 @@ class MessageStream:
             if delta.function_call.name is not None:
                 self.__message.function_call.name += delta.function_call.name
             if delta.function_call.arguments is not None:
-                if self.__message.function_call.arguments is None:
-                    s = cast(str, self.__message.function_call.arguments or "")
-                    self.__message.function_call.arguments = (
-                        s + delta.function_call.arguments
-                    )
+                s = cast(str, self.__message.function_call.arguments or "")
+                self.__message.function_call.arguments = (
+                    s + delta.function_call.arguments
+                )
         if delta.role is not None:
             self.__message.role = Role.from_str(delta.role)
         return delta.content or ""

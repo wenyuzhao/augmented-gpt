@@ -4,6 +4,7 @@ from typing import (
     Generator,
     AsyncGenerator,
     List,
+    Literal,
     Sequence,
     Tuple,
     TypeVar,
@@ -58,7 +59,7 @@ class GPTOptions:
         return {k: v for k, v in args.items() if v is not None}
 
 
-M = TypeVar("M", Message, MessageStream)
+M = TypeVar("M", Message, Message | MessageStream)
 
 
 class ChatCompletion(Generic[M]):
@@ -222,7 +223,7 @@ class AugmentedGPT:
     @overload
     async def __chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> Generator[MessageStream, None, None]:
+    ) -> Generator[Message | MessageStream, None, None]:
         ...
 
     async def __chat_completion(
@@ -251,7 +252,7 @@ class AugmentedGPT:
             result = await self.__call_function(message.function_call)
             history.append(result)
             await self.__on_new_chat_message(result)
-            yield MessageStream(None, result) if stream else result
+            yield result
             # Send back the function call result
             message: Message
             if stream:
@@ -276,7 +277,7 @@ class AugmentedGPT:
     @overload
     def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[MessageStream]:
+    ) -> ChatCompletion[Message | MessageStream]:
         ...
 
     def chat_completion(
