@@ -18,7 +18,7 @@ class MemoryPlugin(Plugin):
         return (
             pd.read_csv(self.data_file)  # type: ignore
             if os.path.isfile(self.data_file) and os.path.getsize(self.data_file) > 0
-            else pd.DataFrame(columns=["timestamp", "text", "embedding"])
+            else pd.DataFrame(columns=["timestamp", "text", "embedding"])  # type: ignore
         )
 
     async def __save_new_data(self, text: str):

@@ -2,6 +2,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    AsyncGenerator,
     List,
     Sequence,
     Tuple,
@@ -60,12 +61,27 @@ class GPTOptions:
 M = TypeVar("M", Message, MessageStream)
 
 
-class ChatCompletionResponse(Generic[M]):
-    def __init__(self) -> None:
+class ChatCompletion(Generic[M]):
+    def __init__(self, agen: AsyncGenerator[M, None]) -> None:
         super().__init__()
+        self.__agen = agen
 
-    async def __aiter__(self) -> M:
-        ...
+    async def __anext__(self) -> M:
+        return await self.__agen.__anext__()
+
+    def __aiter__(self):
+        return self
+
+    def __next__(self) -> M:
+        loop = asyncio.get_event_loop()
+        try:
+            result = loop.run_until_complete(self.__anext__())
+            return result
+        except StopAsyncIteration:
+            raise StopIteration()
+
+    def __iter__(self):
+        return self
 
 
 class AugmentedGPT:
@@ -195,7 +211,7 @@ class AugmentedGPT:
             return Message.from_chat_completion_message(response.choices[0].message)
 
     @overload
-    async def chat_completion(
+    async def __chat_completion(
         self,
         messages: List[Message],
         stream: Literal[False] = False,
@@ -204,12 +220,12 @@ class AugmentedGPT:
         ...
 
     @overload
-    async def chat_completion(
+    async def __chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
     ) -> Generator[MessageStream, None, None]:
         ...
 
-    async def chat_completion(
+    async def __chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
@@ -249,40 +265,36 @@ class AugmentedGPT:
             await self.__on_new_chat_message(message)
 
     @overload
-    def chat_completion_sync(
+    def chat_completion(
         self,
         messages: List[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
-    ) -> Generator[Message, None, None]:
+    ) -> ChatCompletion[Message]:
         ...
 
     @overload
-    def chat_completion_sync(
+    def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> Generator[MessageStream, None, None]:
+    ) -> ChatCompletion[MessageStream]:
         ...
 
-    def chat_completion_sync(
-        self, messages: list[Message], stream: bool = False, context_free: bool = False
+    def chat_completion(
+        self,
+        messages: list[Message],
+        stream: bool = False,
+        context_free: bool = False,
     ):
-        async_response: list[Any] = []
-
-        async def run_and_capture_result(to_await: Any):
-            async_response.append(await to_await)
-
-        loop = asyncio.get_event_loop()
         if stream:
-            coroutine = self.chat_completion(
-                messages, stream=True, context_free=context_free
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=True, context_free=context_free)
             )
         else:
-            coroutine = self.chat_completion(
-                messages, stream=False, context_free=context_free
+            return ChatCompletion(
+                self.__chat_completion(
+                    messages, stream=False, context_free=context_free
+                )
             )
-        coroutine = run_and_capture_result(coroutine)
-        loop.run_until_complete(coroutine)
-        return async_response[0]
 
     async def __on_new_chat_message(self, msg: Message):
         for p in self.__plugins.values():

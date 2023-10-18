@@ -5,7 +5,7 @@ import pytest
 
 
 @function
-async def get_current_weather(
+def get_current_weather(
     location: str = param("The city and state, e.g. San Francisco, CA"),
     unit: Optional[str] = param(enum=["celsius", "fahrenheit"], default="fahrenheit"),
 ):
@@ -26,5 +26,9 @@ async def test_function_call():
             Message(role="user", content="What is the weather like in boston?"),
         ]
     )
+    all_assistant_content = ""
     async for msg in response:
+        if msg.role == "assistant":
+            all_assistant_content += msg.content or ""
         print(msg)
+    assert "72" in all_assistant_content

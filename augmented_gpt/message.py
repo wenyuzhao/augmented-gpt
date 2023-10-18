@@ -8,6 +8,7 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionMessage,
 )
+import asyncio
 
 JSON: TypeAlias = (
     Mapping[str, "JSON"] | Sequence["JSON"] | str | int | float | bool | None
@@ -107,10 +108,22 @@ class MessageStream:
         self.__message = Message(role="assistant")
         self.__final_message = final_message
 
-    def __next__(self):
+    async def __anext__impl(self) -> str:
         if self.__final_message is not None:
-            raise StopIteration()
-        chunk = next(cast(openai.Stream[ChatCompletionChunk], self.__response))
+            raise StopAsyncIteration()
+        try:
+            chunk = await anext(
+                cast(openai.AsyncStream[ChatCompletionChunk], self.__response)
+            )
+        except StopAsyncIteration:
+            if self.__message.function_call is not None:
+                args = cast(str, self.__message.function_call.arguments).strip()
+                if len(args) == 0:
+                    self.__message.function_call.arguments = {}
+                else:
+                    self.__message.function_call.arguments = json.loads(args)
+            self.__final_message = self.__message
+            raise StopAsyncIteration()
         delta = chunk.choices[0].delta
         # merge self.__message and delta
         if delta.content is not None:
@@ -123,10 +136,33 @@ class MessageStream:
             if delta.function_call.name is not None:
                 self.__message.function_call.name += delta.function_call.name
             if delta.function_call.arguments is not None:
-                self.__message.function_call.name += delta.function_call.arguments
+                if self.__message.function_call.arguments is None:
+                    s = cast(str, self.__message.function_call.arguments or "")
+                    self.__message.function_call.arguments = (
+                        s + delta.function_call.arguments
+                    )
         if delta.role is not None:
             self.__message.role = delta.role
-        return delta
+        return delta.content or ""
+
+    async def __anext__(self) -> str:
+        while True:
+            delta = await self.__anext__impl()
+            if len(delta) > 0:
+                return delta
+
+    def __aiter__(self):
+        return self
+
+    def __next__(self) -> str:
+        if self.__final_message is not None:
+            raise StopIteration()
+        loop = asyncio.get_event_loop()
+        try:
+            result = loop.run_until_complete(self.__anext__())
+            return result
+        except StopAsyncIteration:
+            raise StopIteration()
 
     def __iter__(self):
         return self
@@ -136,4 +172,5 @@ class MessageStream:
             return self.__final_message
         for _ in self:
             ...
-        return self.__message
+        assert self.__final_message is not None
+        return self.__final_message
