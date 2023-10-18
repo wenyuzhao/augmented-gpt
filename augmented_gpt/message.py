@@ -9,6 +9,7 @@ from openai.types.chat import (
     ChatCompletionMessage,
 )
 import asyncio
+from enum import StrEnum
 
 JSON: TypeAlias = (
     Mapping[str, "JSON"] | Sequence["JSON"] | str | int | float | bool | None
@@ -21,9 +22,21 @@ class FunctionCall:
     arguments: JSON
 
 
+class Role(StrEnum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    FUNCTION = "function"
+
+    @staticmethod
+    def from_str(s: Literal["system", "user", "assistant", "function"]) -> "Role":
+        return Role(s)
+
+
 @dataclass
 class Message:
-    role: Literal["system", "user", "assistant", "function"]
+    Role = Role
+    role: Role
     """The role of the messages author.
 
     One of `system`, `user`, `assistant`, or `function`.
@@ -69,7 +82,7 @@ class Message:
         if self.function_call is not None:
             return ChatCompletionMessageParam(
                 content=self.content,
-                role=self.role,
+                role=self.role.value,
                 name=self.name or self.function_call.name,
                 function_call={
                     "name": self.function_call.name,
@@ -78,15 +91,17 @@ class Message:
             )
         elif self.name is not None:
             return ChatCompletionMessageParam(
-                content=self.content, role=self.role, name=self.name
+                content=self.content, role=self.role.value, name=self.name
             )
         else:
-            return ChatCompletionMessageParam(content=self.content, role=self.role)
+            return ChatCompletionMessageParam(
+                content=self.content, role=self.role.value
+            )
 
     @staticmethod
     def from_chat_completion_message(m: ChatCompletionMessage) -> "Message":
         return Message(
-            role=m.role,
+            role=Role.from_str(m.role),
             content=m.content,
             name=m.function_call.name if m.function_call is not None else None,
             function_call=FunctionCall(
@@ -105,7 +120,7 @@ class MessageStream:
         final_message: Optional[Message] = None,
     ):
         self.__response = response
-        self.__message = Message(role="assistant")
+        self.__message = Message(role=Role.ASSISTANT)
         self.__final_message = final_message
 
     async def __anext__impl(self) -> str:
@@ -142,7 +157,7 @@ class MessageStream:
                         s + delta.function_call.arguments
                     )
         if delta.role is not None:
-            self.__message.role = delta.role
+            self.__message.role = Role.from_str(delta.role)
         return delta.content or ""
 
     async def __anext__(self) -> str:

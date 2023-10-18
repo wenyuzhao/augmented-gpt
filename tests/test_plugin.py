@@ -1,4 +1,4 @@
-from augmented_gpt import AugmentedGPT, Message, param, function
+from augmented_gpt import AugmentedGPT, Message, Role, param, function
 from augmented_gpt.plugins import *
 from typing import Optional
 
@@ -28,7 +28,7 @@ def test_weather_and_memory_plugin():
     gpt = AugmentedGPT(plugins=[FakeWeatherPlugin(), MemoryPlugin(data_file=file)])
     response = gpt.chat_completion(
         [
-            Message(role="user", content="What is the weather like in boston?"),
+            Message(role=Role.USER, content="What is the weather like in boston?"),
         ]
     )
     for msg in response:
@@ -37,14 +37,14 @@ def test_weather_and_memory_plugin():
     response = gpt.chat_completion(
         [
             Message(
-                role="user",
+                role=Role.USER,
                 content="What was your response when I asked you about the weather in Boston?",
             ),
         ]
     )
     all_assistant_content = ""
     for msg in response:
-        if msg.role == "assistant":
+        if msg.role == Role.ASSISTANT:
             all_assistant_content += msg.content or ""
         print(msg)
     assert "72" in all_assistant_content

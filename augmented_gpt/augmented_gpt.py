@@ -174,7 +174,7 @@ class AugmentedGPT:
             result = result_or_coroutine
         if not isinstance(result, str):
             result = json.dumps(result)
-        return Message(role="function", name=func_name, content=result)
+        return Message(role=Role.FUNCTION, name=func_name, content=result)
 
     @overload
     async def __chat_completion_request(

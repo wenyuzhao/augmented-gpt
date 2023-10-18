@@ -1,4 +1,4 @@
-from augmented_gpt import AugmentedGPT, Message, param, function
+from augmented_gpt import AugmentedGPT, Message, Role, param, function
 from augmented_gpt.plugins import *
 from typing import Optional
 
@@ -21,7 +21,7 @@ def test_function_call():
     gpt = AugmentedGPT(functions=[get_current_weather])
     response = gpt.chat_completion(
         [
-            Message(role="user", content="What is the weather like in boston?"),
+            Message(role=Role.USER, content="What is the weather like in boston?"),
         ],
         stream=True,
     )
@@ -31,7 +31,7 @@ def test_function_call():
         for delta in msg:
             content += delta
             print(" - ", delta)
-        if msg.message().role == "assistant":
+        if msg.message().role == Role.ASSISTANT:
             all_assistant_content += content
         print(msg.message())
     assert "72" in all_assistant_content
