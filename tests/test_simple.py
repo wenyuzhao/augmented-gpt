@@ -19,7 +19,7 @@ def get_current_weather(
 
 def test_function_call():
     gpt = AugmentedGPT(functions=[get_current_weather])
-    response = gpt.chat_completion(
+    response = gpt.chat_completion_sync(
         [
             Message(role="user", content="What is the weather like in boston?"),
         ]
@@ -51,7 +51,7 @@ def test_weather_and_memory_plugin():
     with open(file, "w+") as f:
         f.write("")
     gpt = AugmentedGPT(plugins=[FakeWeatherPlugin(), MemoryPlugin(file)])
-    response = gpt.chat_completion(
+    response = gpt.chat_completion_sync(
         [
             Message(role="user", content="What is the weather like in boston?"),
         ]
@@ -59,7 +59,7 @@ def test_weather_and_memory_plugin():
     for msg in response:
         print(msg)
     gpt = AugmentedGPT(plugins=[MemoryPlugin(file)])
-    response = gpt.chat_completion(
+    response = gpt.chat_completion_sync(
         [
             Message(
                 role="user", content="When did I ask you for the weather in boston?"

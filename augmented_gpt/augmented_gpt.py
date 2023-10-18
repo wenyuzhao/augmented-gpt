@@ -5,7 +5,9 @@ from typing import (
     List,
     Sequence,
     Tuple,
+    TypeVar,
     Any,
+    Generic,
     overload,
     TYPE_CHECKING,
 )
@@ -18,6 +20,7 @@ import openai
 import logging
 import os
 from openai.types.chat import ChatCompletionMessageParam
+import asyncio
 
 from typing import TYPE_CHECKING
 
@@ -52,6 +55,17 @@ class GPTOptions:
             "timeout": self.timeout,
         }
         return {k: v for k, v in args.items() if v is not None}
+
+
+M = TypeVar("M", Message, MessageStream)
+
+
+class ChatCompletionResponse(Generic[M]):
+    def __init__(self) -> None:
+        super().__init__()
+
+    async def __aiter__(self) -> M:
+        ...
 
 
 class AugmentedGPT:
@@ -89,7 +103,7 @@ class AugmentedGPT:
         )
         assert api_key is not None, "Missing OPENAI_API_KEY"
         openai.api_key = api_key
-        self.client = openai.OpenAI(api_key=api_key)
+        self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
@@ -127,7 +141,7 @@ class AugmentedGPT:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
 
-    def __call_function(self, function_call: FunctionCall) -> Message:
+    async def __call_function(self, function_call: FunctionCall) -> Message:
         func_name = function_call.name
         func = self.__functions[func_name][1]
         arguments = function_call.arguments
@@ -137,24 +151,28 @@ class AugmentedGPT:
             + ", ".join(str(a) for a in args)
             + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
         )
-        result = func(*args, **kw_args)
+        result_or_coroutine = func(*args, **kw_args)
+        if inspect.iscoroutine(result_or_coroutine):
+            result = await result_or_coroutine
+        else:
+            result = result_or_coroutine
         if not isinstance(result, str):
             result = json.dumps(result)
         return Message(role="function", name=func_name, content=result)
 
     @overload
-    def __chat_completion_request(
+    async def __chat_completion_request(
         self, messages: List[Message], stream: Literal[False]
     ) -> Message:
         ...
 
     @overload
-    def __chat_completion_request(
+    async def __chat_completion_request(
         self, messages: List[Message], stream: Literal[True]
     ) -> MessageStream:
         ...
 
-    def __chat_completion_request(
+    async def __chat_completion_request(
         self, messages: List[Message], stream: bool
     ) -> Message | MessageStream:
         functions = [x for (x, _) in self.__functions.values()]
@@ -170,14 +188,14 @@ class AugmentedGPT:
             args["functions"] = functions
             args["function_call"] = "auto"
         if stream:
-            response = self.client.chat.completions.create(**args, stream=True)
+            response = await self.client.chat.completions.create(**args, stream=True)
             return MessageStream(response)
         else:
-            response = self.client.chat.completions.create(**args, stream=False)
+            response = await self.client.chat.completions.create(**args, stream=False)
             return Message.from_chat_completion_message(response.choices[0].message)
 
     @overload
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: List[Message],
         stream: Literal[False] = False,
@@ -186,12 +204,12 @@ class AugmentedGPT:
         ...
 
     @overload
-    def chat_completion(
+    async def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
     ) -> Generator[MessageStream, None, None]:
         ...
 
-    def chat_completion(
+    async def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
@@ -200,36 +218,74 @@ class AugmentedGPT:
         history = self.history if not context_free else []
         history.extend(messages)
         for m in messages:
-            self.__on_new_chat_message(m)
+            await self.__on_new_chat_message(m)
         # First completion request
         message: Message
         if stream:
-            s = self.__chat_completion_request(history, stream=True)
+            s = await self.__chat_completion_request(history, stream=True)
             yield s
             message = s.message()
         else:
-            message = self.__chat_completion_request(history, stream=False)
+            message = await self.__chat_completion_request(history, stream=False)
             yield message
         history.append(message)
-        self.__on_new_chat_message(message)
+        await self.__on_new_chat_message(message)
         while message.function_call is not None:
             # ChatGPT wanted to call a user-defined function
-            result = self.__call_function(message.function_call)
+            result = await self.__call_function(message.function_call)
             history.append(result)
-            self.__on_new_chat_message(result)
+            await self.__on_new_chat_message(result)
             yield MessageStream(None, result) if stream else result
             # Send back the function call result
             message: Message
             if stream:
-                r = self.__chat_completion_request(history, stream=True)
+                r = await self.__chat_completion_request(history, stream=True)
                 yield r
                 message = r.message()
             else:
-                message = self.__chat_completion_request(history, stream=False)
+                message = await self.__chat_completion_request(history, stream=False)
                 yield message
             history.append(message)
-            self.__on_new_chat_message(message)
+            await self.__on_new_chat_message(message)
 
-    def __on_new_chat_message(self, msg: Message):
+    @overload
+    def chat_completion_sync(
+        self,
+        messages: List[Message],
+        stream: Literal[False] = False,
+        context_free: bool = False,
+    ) -> Generator[Message, None, None]:
+        ...
+
+    @overload
+    def chat_completion_sync(
+        self, messages: List[Message], stream: Literal[True], context_free: bool = False
+    ) -> Generator[MessageStream, None, None]:
+        ...
+
+    def chat_completion_sync(
+        self, messages: list[Message], stream: bool = False, context_free: bool = False
+    ):
+        async_response: list[Any] = []
+
+        async def run_and_capture_result(to_await: Any):
+            async_response.append(await to_await)
+
+        loop = asyncio.get_event_loop()
+        if stream:
+            coroutine = self.chat_completion(
+                messages, stream=True, context_free=context_free
+            )
+        else:
+            coroutine = self.chat_completion(
+                messages, stream=False, context_free=context_free
+            )
+        coroutine = run_and_capture_result(coroutine)
+        loop.run_until_complete(coroutine)
+        return async_response[0]
+
+    async def __on_new_chat_message(self, msg: Message):
         for p in self.__plugins.values():
-            p.on_new_chat_message(msg)
+            result = p.on_new_chat_message(msg)
+            if inspect.iscoroutine(result):
+                await result

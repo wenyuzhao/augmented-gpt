@@ -1,4 +1,4 @@
-from typing import Literal, Optional, TypeAlias, cast
+from typing import Literal, Optional, TypeAlias, cast, Mapping, Sequence, Any
 import json
 from dataclasses import dataclass
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
@@ -9,7 +9,9 @@ from openai.types.chat import (
     ChatCompletionMessage,
 )
 
-JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
+JSON: TypeAlias = (
+    Mapping[str, "JSON"] | Sequence["JSON"] | str | int | float | bool | None
+)
 
 
 @dataclass
@@ -49,7 +51,7 @@ class Message:
     #     self.function_call = json.loads(json.dumps((self.function_call)))
 
     def to_json(self) -> JSON:
-        data: JSON = {
+        data: Mapping[str, Any] = {
             "role": self.role,
             "content": self.content,
         }
@@ -98,7 +100,7 @@ class Message:
 class MessageStream:
     def __init__(
         self,
-        response: Optional[openai.Stream[ChatCompletionChunk]],
+        response: Optional[openai.AsyncStream[ChatCompletionChunk]],
         final_message: Optional[Message] = None,
     ):
         self.__response = response

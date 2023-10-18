@@ -25,7 +25,7 @@ class Plugin:
         self.logger = gpt.logger
         self.gpt = gpt
 
-    def on_new_chat_message(self, msg: Message):
+    def on_new_chat_message(self, msg: Message) -> Any:
         ...
 
 

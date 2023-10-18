@@ -21,16 +21,16 @@ class MemoryPlugin(Plugin):
             else pd.DataFrame(columns=["timestamp", "text", "embedding"])
         )
 
-    def __save_new_data(self, text: str):
+    async def __save_new_data(self, text: str):
         df: Any = self.__load_data()
-        embedding = self.__get_embedding(text, model="text-embedding-ada-002")
+        embedding = await self.__get_embedding(text, model="text-embedding-ada-002")
         df.loc[len(df.index)] = [datetime.datetime.now().isoformat(), text, embedding]
         df.to_csv(self.data_file, index=False)
 
-    def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
+    async def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
         return (
-            self.gpt.client.embeddings.create(input=[text], model=model)
+            (await self.gpt.client.embeddings.create(input=[text], model=model))
             .data[0]
             .embedding
         )
@@ -68,14 +68,14 @@ class MemoryPlugin(Plugin):
         return results
 
     @function
-    def remember(
+    async def remember(
         self,
         content: str = param("The content to remember in the memory"),
     ):
         """Actively remember some information as part of the long-term memory, if it is important."""
-        self.__save_new_data(content)
+        await self.__save_new_data(content)
         return "done."
 
-    def on_new_chat_message(self, msg: Message):
+    async def on_new_chat_message(self, msg: Message):
         msg_s = json.dumps(msg.to_json())
-        self.__save_new_data(msg_s)
+        await self.__save_new_data(msg_s)
