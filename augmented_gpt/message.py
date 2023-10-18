@@ -151,6 +151,8 @@ class MessageStream:
                     self.__message.function_call.arguments = json.loads(args)
             self.__final_message = self.__message
             raise StopAsyncIteration()
+        if chunk.choices is None or len(chunk.choices) == 0:
+            return ""
         delta = chunk.choices[0].delta
         # merge self.__message and delta
         if delta.content is not None:
