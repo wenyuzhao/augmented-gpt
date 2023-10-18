@@ -107,13 +107,14 @@ class AugmentedGPT:
             "gpt-3.5-turbo-0613",
             "gpt-3.5-turbo-16k-0613",
         ] = "gpt-4",
-        functions: List[Callable[..., Any]] = [],
-        plugins: Sequence["Plugin"] = [],
+        functions: Optional[Sequence[Callable[..., Any]]] = None,
+        plugins: Optional[Sequence["Plugin"]] = None,
         debug: bool = False,
-        gpt_options: GPTOptions = GPTOptions(),
+        gpt_options: Optional[GPTOptions] = None,
         api_key: Optional[str] = None,
+        prologue: Optional[List[Message]] = None,
     ):
-        self.gpt_options = gpt_options
+        self.gpt_options = gpt_options or GPTOptions()
         self.model = model
         api_key = api_key or dotenv_values().get(
             "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", openai_api_key)
@@ -124,16 +125,16 @@ class AugmentedGPT:
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
-        for f in functions:
+        for f in functions or []:
             self.add_function(f)
         self.__plugins: Any = {}
-        for p in plugins:
+        for p in plugins or []:
             clsname = p.__class__.__name__
             if clsname.endswith("Plugin"):
                 clsname = clsname[:-6]
             p.register(self)
             self.__plugins[clsname] = p
-        self.history: List[Message] = []
+        self.history: List[Message] = prologue or []
 
     def get_plugin(self, name: str) -> "Plugin":
         return self.__plugins[name]
