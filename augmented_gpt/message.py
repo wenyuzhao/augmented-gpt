@@ -29,7 +29,8 @@ class Role(StrEnum):
     FUNCTION = "function"
 
     @staticmethod
-    def from_str(s: Literal["system", "user", "assistant", "function"]) -> "Role":
+    def from_str(s: str) -> "Role":
+        assert s in ["system", "user", "assistant", "function"]
         return Role(s)
 
 
