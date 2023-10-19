@@ -82,7 +82,7 @@ class Message:
     def to_chat_completion_message_param(self) -> ChatCompletionMessageParam:
         if self.function_call is not None:
             return ChatCompletionMessageParam(
-                content=self.content,
+                content=self.content or '',
                 role=self.role.value,
                 name=self.name or self.function_call.name,
                 function_call={
@@ -92,11 +92,11 @@ class Message:
             )
         elif self.name is not None:
             return ChatCompletionMessageParam(
-                content=self.content, role=self.role.value, name=self.name
+                content=self.content or '', role=self.role.value, name=self.name
             )
         else:
             return ChatCompletionMessageParam(
-                content=self.content, role=self.role.value
+                content=self.content or '', role=self.role.value
             )
 
     @staticmethod
