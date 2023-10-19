@@ -187,7 +187,7 @@ class AugmentedGPT:
             return Message(
                 role=Role.FUNCTION,
                 name=func_name,
-                content=f"Failed to execute function `{func_name}`. Please retry.",
+                content=f"Failed to execute function `{func_name}`. Please retry. Error Message: {e}",
             )
 
     @overload
