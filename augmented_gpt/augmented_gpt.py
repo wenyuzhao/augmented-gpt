@@ -23,6 +23,7 @@ import logging
 import os
 from openai.types.chat import ChatCompletionMessageParam
 import asyncio
+from datetime import datetime
 
 from typing import TYPE_CHECKING
 
@@ -113,6 +114,7 @@ class AugmentedGPT:
         gpt_options: Optional[GPTOptions] = None,
         api_key: Optional[str] = None,
         prologue: Optional[List[Message]] = None,
+        inject_current_date_time: bool = False,
     ):
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
@@ -136,6 +138,7 @@ class AugmentedGPT:
             self.__plugins[clsname] = p
         self.__prologue = prologue or []
         self.history: List[Message] = [m for m in self.__prologue] or []
+        self.inject_current_date_time = inject_current_date_time
 
     def reset(self):
         self.history = [m for m in self.__prologue]
@@ -246,6 +249,9 @@ class AugmentedGPT:
         context_free: bool = False,
     ):
         history = self.history if not context_free else []
+        if self.inject_current_date_time:
+            dt = datetime.today().strftime('%Y-%m-%d %a %H:%M:%S')
+            history.append(Message(role=Role.SYSTEM, content=f"current-time: {dt}"))
         history.extend(messages)
         for m in messages:
             await self.__on_new_chat_message(m)
