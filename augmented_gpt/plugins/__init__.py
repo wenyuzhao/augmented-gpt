@@ -11,6 +11,9 @@ class Plugin:
     logger: Logger
     gpt: "AugmentedGPT"
 
+    def __init__(self, name: Optional[str] = None):
+        self.name = name or self.__class__.__name__
+
     def register(self, gpt: "AugmentedGPT"):
         for _n, method in inspect.getmembers(self, predicate=inspect.ismethod):
             if not hasattr(method, "gpt_function_call_info"):
