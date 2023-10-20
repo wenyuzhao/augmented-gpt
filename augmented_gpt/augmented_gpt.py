@@ -248,9 +248,10 @@ class AugmentedGPT:
         stream: bool = False,
         context_free: bool = False,
     ):
-        history = self.history if not context_free else []
+        history = [h for h in (self.history if not context_free else [])]
+        old_history_length = len(history)
         if self.inject_current_date_time:
-            dt = datetime.today().strftime('%Y-%m-%d %a %H:%M:%S')
+            dt = datetime.today().strftime("%Y-%m-%d %a %H:%M:%S")
             history.append(Message(role=Role.SYSTEM, content=f"current-time: {dt}"))
         history.extend(messages)
         for m in messages:
@@ -283,6 +284,8 @@ class AugmentedGPT:
                 yield message
             history.append(message)
             await self.__on_new_chat_message(message)
+        if not context_free:
+            self.history.extend(history[old_history_length:])
 
     @overload
     def chat_completion(

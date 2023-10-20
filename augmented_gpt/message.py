@@ -82,7 +82,7 @@ class Message:
     def to_chat_completion_message_param(self) -> ChatCompletionMessageParam:
         if self.function_call is not None:
             return ChatCompletionMessageParam(
-                content=self.content or '',
+                content=self.content or "",
                 role=self.role.value,
                 name=self.name or self.function_call.name,
                 function_call={
@@ -92,11 +92,11 @@ class Message:
             )
         elif self.name is not None:
             return ChatCompletionMessageParam(
-                content=self.content or '', role=self.role.value, name=self.name
+                content=self.content or "", role=self.role.value, name=self.name
             )
         else:
             return ChatCompletionMessageParam(
-                content=self.content or '', role=self.role.value
+                content=self.content or "", role=self.role.value
             )
 
     @staticmethod
@@ -125,23 +125,26 @@ class Message:
         return self
 
 
+@dataclass
+class ServerError(RuntimeError):
+    message: Optional[str] = None
+
+
 class MessageStream:
     def __init__(
         self,
-        response: Optional[openai.AsyncStream[ChatCompletionChunk]],
-        final_message: Optional[Message] = None,
+        response: openai.AsyncStream[ChatCompletionChunk],
     ):
         self.__response = response
+        self.__aiter = response.__aiter__()
         self.__message = Message(role=Role.ASSISTANT)
-        self.__final_message = final_message
+        self.__final_message: Optional[Message] = None
 
     async def __anext__impl(self) -> str:
         if self.__final_message is not None:
             raise StopAsyncIteration()
         try:
-            chunk = await anext(
-                cast(openai.AsyncStream[ChatCompletionChunk], self.__response)
-            )
+            chunk = await self.__aiter.__anext__()
         except StopAsyncIteration:
             if self.__message.function_call is not None:
                 args = cast(str, self.__message.function_call.arguments).strip()
@@ -151,8 +154,9 @@ class MessageStream:
                     self.__message.function_call.arguments = json.loads(args)
             self.__final_message = self.__message
             raise StopAsyncIteration()
-        if chunk.choices is None or len(chunk.choices) == 0:
-            return ""
+        if hasattr(chunk, "error"):
+            print(chunk)
+            raise ServerError(chunk.error["message"])  # type: ignore
         delta = chunk.choices[0].delta
         # merge self.__message and delta
         if delta.content is not None:

@@ -8,7 +8,7 @@ from .decorators import param, function
 from .message import MessageStream, Message, Role
 from .plugins import Plugin
 from . import plugins
-from .augmented_gpt import AugmentedGPT, GPTOptions, ChatCompletion
+from .augmented_gpt import AugmentedGPT, GPTOptions, ChatCompletion, ServerError
 
 __all__ = [
     "param",
@@ -21,4 +21,5 @@ __all__ = [
     "AugmentedGPT",
     "ChatCompletion",
     "GPTOptions",
+    "ServerError",
 ]
