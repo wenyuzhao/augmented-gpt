@@ -22,7 +22,7 @@ async def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(functions=[get_current_weather])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo", functions=[get_current_weather])
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),

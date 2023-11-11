@@ -18,7 +18,7 @@ def get_current_weather(
 
 
 def test_function_call():
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", functions=[get_current_weather])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo-1106", functions=[get_current_weather])
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),

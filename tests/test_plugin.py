@@ -25,7 +25,7 @@ def test_weather_and_memory_plugin():
     file = "_test-data.csv"
     with open(file, "w+") as f:
         f.write("")
-    gpt = AugmentedGPT(plugins=[FakeWeatherPlugin(), MemoryPlugin(data_file=file)])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo", plugins=[FakeWeatherPlugin(), MemoryPlugin(data_file=file)])
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),
@@ -33,7 +33,7 @@ def test_weather_and_memory_plugin():
     )
     for msg in response:
         print(msg)
-    gpt = AugmentedGPT(plugins=[MemoryPlugin(file)])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo", plugins=[MemoryPlugin(file)])
     response = gpt.chat_completion(
         [
             Message(
