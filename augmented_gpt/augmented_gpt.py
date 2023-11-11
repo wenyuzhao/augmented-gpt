@@ -30,8 +30,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .plugins import Plugin
 
-openai_api_key = None
-
 
 @dataclass
 class GPTOptions:
@@ -87,11 +85,6 @@ class ChatCompletion(Generic[M]):
 
 
 class AugmentedGPT:
-    @staticmethod
-    def set_api_key(key: str):
-        global openai_api_key
-        openai_api_key = key
-
     def support_tools(self) -> bool:
         return self.model in [
             "gpt-4-1106-preview",
@@ -124,10 +117,9 @@ class AugmentedGPT:
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
         api_key = api_key or dotenv_values().get(
-            "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", openai_api_key)
+            "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY")
         )
         assert api_key is not None, "Missing OPENAI_API_KEY"
-        openai.api_key = api_key
         self.api_key = api_key
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
