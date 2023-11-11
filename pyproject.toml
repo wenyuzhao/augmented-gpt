@@ -13,13 +13,10 @@ keywords = ["chatgpt", "gpt"]
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 python-dotenv = "^1.0.0"
-pandas = "1.5.3"
-numpy = "<1.24,>=1.22"
-matplotlib = "^3.7.1"
-plotly = "^5.15.0"
-scipy = "^1.10.1"
+pandas = ">= 2.0.0"
+numpy = ">=1.22"
 scikit-learn = "^1.2.2"
-openai = { version = "^1.0.0b1", allow-prereleases = true }
+openai = { version = "1.2.3" }
 
 
 [tool.poetry.group.dev.dependencies]

@@ -92,22 +92,27 @@ class AugmentedGPT:
         global openai_api_key
         openai_api_key = key
 
+    def support_tools(self) -> bool:
+        return self.model in [
+            "gpt-4-1106-preview",
+            "gpt-3.5-turbo-1106",
+        ]
+
     def __init__(
         self,
         model: str
         | Literal[
             "gpt-4",
-            "gpt-4-0314",
             "gpt-4-0613",
             "gpt-4-32k",
-            "gpt-4-32k-0314",
             "gpt-4-32k-0613",
             "gpt-3.5-turbo",
             "gpt-3.5-turbo-16k",
-            "gpt-3.5-turbo-0301",
-            "gpt-3.5-turbo-0613",
-            "gpt-3.5-turbo-16k-0613",
-        ] = "gpt-4",
+            # Preview versions
+            "gpt-4-1106-preview",
+            # "gpt-4-vision-preview",
+            "gpt-3.5-turbo-1106",
+        ] = "gpt-4-1106-preview",
         functions: Optional[Sequence[Callable[..., Any]]] = None,
         plugins: Optional[Sequence["Plugin"]] = None,
         debug: bool = False,
@@ -168,8 +173,9 @@ class AugmentedGPT:
 
     async def __call_function(self, function_call: FunctionCall) -> Message:
         func_name = function_call.name
+        key = func_name if not func_name.startswith("functions.") else func_name[10:]
         try:
-            func = self.__functions[func_name][1]
+            func = self.__functions[key][1]
             arguments = function_call.arguments
             args, kw_args = self.__filter_args(func, arguments)
             self.logger.debug(
@@ -218,8 +224,12 @@ class AugmentedGPT:
             **self.gpt_options.as_kwargs(),
         }
         if len(functions) > 0:
-            args["functions"] = functions
-            args["function_call"] = "auto"
+            if self.support_tools():
+                args["tools"] = [{"type": "function", "function": f} for f in functions]
+                args["tool_choice"] = "auto"
+            else:
+                args["functions"] = functions
+                args["function_call"] = "auto"
         if stream:
             response = await self.client.chat.completions.create(**args, stream=True)
             return MessageStream(response)
