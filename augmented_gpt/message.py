@@ -2,6 +2,7 @@ from typing import (
     Literal,
     Optional,
     TypeAlias,
+    Union,
     cast,
     Mapping,
     Sequence,
@@ -20,7 +21,7 @@ from openai.types.chat import (
     ChatCompletionSystemMessageParam,
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
-    ChatCompletionMessage,
+    ChatCompletionMessage,ChatCompletionContentPartParam,ChatCompletionContentPartTextParam, ChatCompletionContentPartImageParam
 )
 
 from openai.types.chat.chat_completion_message import FunctionCall as OpenAIFunctionCall
@@ -80,6 +81,21 @@ class Role(StrEnum):
         assert s in ["system", "user", "assistant", "function"]
         return Role(s)
 
+class ContentPartText:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+    def to_openai_content_part(self) -> ChatCompletionContentPartTextParam:
+        return {"type": "text", "text": self.content}
+
+class ContentPartImage:
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def to_openai_content_part(self) -> ChatCompletionContentPartImageParam:
+        return  {"type": "image", "image_url": {"url":self.url}}
+
+ContentPart = Union[ContentPartText, ContentPartImage]
 
 @dataclass
 class Message:
@@ -89,7 +105,7 @@ class Message:
 
     One of `system`, `user`, `assistant`, or `function`.
     """
-    content: Optional[str] = None
+    content: Optional[str | Sequence[ContentPart]] = None
     """The contents of the message.
 
     `content` is required for all messages, and may be null for assistant messages
@@ -132,13 +148,16 @@ class Message:
     def to_chat_completion_message_param(self) -> ChatCompletionMessageParam:
         content = self.content or ""
         if self.role == Role.SYSTEM:
+            assert isinstance(content, str)
             return ChatCompletionSystemMessageParam(role="system", content=content)
         if self.role == Role.FUNCTION:
+            assert isinstance(content, str)
             assert self.name is not None
             return ChatCompletionFunctionMessageParam(
                 role="function", name=self.name, content=content
             )
         if self.role == Role.TOOL:
+            assert isinstance(content, str)
             assert self.tool_call_id is not None
             return ChatCompletionToolMessageParam(
                 role="tool",
@@ -146,8 +165,13 @@ class Message:
                 content=content,
             )
         if self.role == Role.USER:
+            content = content if isinstance(content, str) else [
+                c.to_openai_content_part()
+                for c in self.content
+            ]
             return ChatCompletionUserMessageParam(role="user", content=content)
         if self.role == Role.ASSISTANT:
+            assert isinstance(content, str)
             if self.function_call is not None:
                 return ChatCompletionAssistantMessageParam(
                     role="assistant",

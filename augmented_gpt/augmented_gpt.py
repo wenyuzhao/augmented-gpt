@@ -110,7 +110,7 @@ class AugmentedGPT:
             "gpt-3.5-turbo-16k",
             # Preview versions
             "gpt-4-1106-preview",
-            # "gpt-4-vision-preview",
+            "gpt-4-vision-preview",
             "gpt-3.5-turbo-1106",
         ] = "gpt-4-1106-preview",
         functions: Optional[Sequence[Callable[..., Any]]] = None,
