@@ -9,8 +9,10 @@ from .message import MessageStream, Message, Role, ToolCall, FunctionCall, Conte
 from .plugins import Plugin
 from . import plugins
 from .augmented_gpt import AugmentedGPT, GPTOptions, ChatCompletion, ServerError
+from . import utils
 
 __all__ = [
+    "utils",
     "param",
     "function",
     "Message",

@@ -128,6 +128,7 @@ class AugmentedGPT:
         )
         assert api_key is not None, "Missing OPENAI_API_KEY"
         openai.api_key = api_key
+        self.api_key = api_key
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
