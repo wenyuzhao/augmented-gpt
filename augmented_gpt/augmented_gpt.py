@@ -171,9 +171,15 @@ class AugmentedGPT:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
 
-    async def __call_function(self, function_call: FunctionCall) -> Message:
+    async def __call_function(
+        self, function_call: FunctionCall, tool_id: Optional[str]
+    ) -> Message:
         func_name = function_call.name
         key = func_name if not func_name.startswith("functions.") else func_name[10:]
+        if tool_id is not None:
+            result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content="")
+        else:
+            result_msg = Message(role=Role.FUNCTION, name=func_name, content="")
         try:
             func = self.__functions[key][1]
             arguments = function_call.arguments
@@ -190,14 +196,11 @@ class AugmentedGPT:
                 result = result_or_coroutine
             if not isinstance(result, str):
                 result = json.dumps(result)
-            return Message(role=Role.FUNCTION, name=func_name, content=result)
+            result_msg.content = result
         except Exception as e:
             print(e)
-            return Message(
-                role=Role.FUNCTION,
-                name=func_name,
-                content=f"Failed to execute function `{func_name}`. Please retry. Error Message: {e}",
-            )
+            result_msg.content = f"Failed to execute function `{func_name}`. Please retry. Error Message: {e}"
+        return result_msg
 
     @overload
     async def __chat_completion_request(
@@ -277,12 +280,21 @@ class AugmentedGPT:
             yield message
         history.append(message)
         await self.__on_new_chat_message(message)
-        while message.function_call is not None:
-            # ChatGPT wanted to call a user-defined function
-            result = await self.__call_function(message.function_call)
-            history.append(result)
-            await self.__on_new_chat_message(result)
-            yield result
+        while message.function_call is not None or len(message.tool_calls) > 0:
+            if len(message.tool_calls) > 0:
+                for t in message.tool_calls:
+                    assert t.type == "function"
+                    result = await self.__call_function(t.function, tool_id=t.id)
+                    history.append(result)
+                    await self.__on_new_chat_message(result)
+                    yield result
+            else:
+                assert message.function_call is not None
+                # ChatGPT wanted to call a user-defined function
+                result = await self.__call_function(message.function_call, tool_id=None)
+                history.append(result)
+                await self.__on_new_chat_message(result)
+                yield result
             # Send back the function call result
             message: Message
             if stream:
