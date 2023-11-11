@@ -5,7 +5,16 @@ import logging
 logging.basicConfig(format="[%(levelname)s:%(name)s] %(message)s")
 
 from .decorators import param, function
-from .message import MessageStream, Message, Role, ToolCall, FunctionCall, ContentPart, ContentPartImage, ContentPartText
+from .message import (
+    MessageStream,
+    Message,
+    Role,
+    ToolCall,
+    FunctionCall,
+    ContentPart,
+    ContentPartImage,
+    ContentPartText,
+)
 from .plugins import Plugin
 from . import plugins
 from .augmented_gpt import AugmentedGPT, GPTOptions, ChatCompletion, ServerError

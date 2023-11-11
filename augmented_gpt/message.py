@@ -21,7 +21,10 @@ from openai.types.chat import (
     ChatCompletionSystemMessageParam,
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
-    ChatCompletionMessage,ChatCompletionContentPartParam,ChatCompletionContentPartTextParam, ChatCompletionContentPartImageParam
+    ChatCompletionMessage,
+    ChatCompletionContentPartParam,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionContentPartImageParam,
 )
 
 from openai.types.chat.chat_completion_message import FunctionCall as OpenAIFunctionCall
@@ -81,6 +84,7 @@ class Role(StrEnum):
         assert s in ["system", "user", "assistant", "function"]
         return Role(s)
 
+
 class ContentPartText:
     def __init__(self, content: str) -> None:
         self.content = content
@@ -88,14 +92,17 @@ class ContentPartText:
     def to_openai_content_part(self) -> ChatCompletionContentPartTextParam:
         return {"type": "text", "text": self.content}
 
+
 class ContentPartImage:
     def __init__(self, url: str) -> None:
         self.url = url
 
     def to_openai_content_part(self) -> ChatCompletionContentPartImageParam:
-        return  {"type": "image", "image_url": {"url":self.url}}
+        return {"type": "image", "image_url": {"url": self.url}}
+
 
 ContentPart = Union[ContentPartText, ContentPartImage]
+
 
 @dataclass
 class Message:
@@ -165,10 +172,11 @@ class Message:
                 content=content,
             )
         if self.role == Role.USER:
-            content = content if isinstance(content, str) else [
-                c.to_openai_content_part()
-                for c in self.content
-            ]
+            content = (
+                content
+                if isinstance(content, str)
+                else [c.to_openai_content_part() for c in self.content]
+            )
             return ChatCompletionUserMessageParam(role="user", content=content)
         if self.role == Role.ASSISTANT:
             assert isinstance(content, str)

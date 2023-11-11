@@ -3,14 +3,20 @@ from augmented_gpt.message import ContentPartImage, ContentPartText
 from augmented_gpt.plugins import *
 from typing import Optional
 
+
 def test_function_call():
     gpt = AugmentedGPT(model="gpt-4-vision-preview")
     response = gpt.chat_completion(
         [
-            Message(role=Role.USER, content=[
-                ContentPartText("What is this animal?"),
-                ContentPartImage("https://icons.iconarchive.com/icons/iconarchive/cute-animal/256/Cute-Cat-icon.png")
-            ]),
+            Message(
+                role=Role.USER,
+                content=[
+                    ContentPartText("What is this animal?"),
+                    ContentPartImage(
+                        "https://icons.iconarchive.com/icons/iconarchive/cute-animal/256/Cute-Cat-icon.png"
+                    ),
+                ],
+            ),
         ]
     )
     all_assistant_content = ""

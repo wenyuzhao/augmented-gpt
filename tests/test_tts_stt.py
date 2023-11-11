@@ -1,5 +1,5 @@
 from augmented_gpt import AugmentedGPT
-from augmented_gpt import utils 
+from augmented_gpt import utils
 import tempfile
 
 
