@@ -1,11 +1,11 @@
 import asyncio
-from typing import Any, TypeVar, Generator
+from typing import TypeVar, Awaitable
 
 
 T = TypeVar("T")
 
 
-def block_on(co: Generator[Any, None, T]) -> T:
+def block_on(co: Awaitable[T]) -> T:
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(co)
 

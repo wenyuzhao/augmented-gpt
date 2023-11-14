@@ -11,10 +11,10 @@ class SpeechToText:
 
     async def transcribe(self, path: str | Path) -> str:
         with open(path, "rb") as audio_file:
-            transcript = await self.client.audio.translations.create(
-                model="whisper-1", file=audio_file, response_format="text"
+            transcript = await self.client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file
             )
-            return transcript
+            return transcript.text
 
     def transcribe_sync(self, path: str | Path) -> str:
         from . import block_on

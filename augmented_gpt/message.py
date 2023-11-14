@@ -22,7 +22,6 @@ from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
     ChatCompletionMessage,
-    ChatCompletionContentPartParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionContentPartImageParam,
 )
@@ -98,7 +97,7 @@ class ContentPartImage:
         self.url = url
 
     def to_openai_content_part(self) -> ChatCompletionContentPartImageParam:
-        return {"type": "image", "image_url": {"url": self.url}}
+        return {"type": "image_url", "image_url": {"url": self.url}}
 
 
 ContentPart = Union[ContentPartText, ContentPartImage]
@@ -172,12 +171,12 @@ class Message:
                 content=content,
             )
         if self.role == Role.USER:
-            content = (
+            _content = (
                 content
                 if isinstance(content, str)
-                else [c.to_openai_content_part() for c in self.content]
+                else [c.to_openai_content_part() for c in content]
             )
-            return ChatCompletionUserMessageParam(role="user", content=content)
+            return ChatCompletionUserMessageParam(role="user", content=_content)
         if self.role == Role.ASSISTANT:
             assert isinstance(content, str)
             if self.function_call is not None:
@@ -269,6 +268,8 @@ class MessageStream:
         if delta.content is not None:
             if self.__message.content is None:
                 self.__message.content = ""
+            assert isinstance(delta.content, str)
+            assert isinstance(self.__message.content, str)
             self.__message.content += delta.content
         if delta.function_call is not None:
             if self.__message.function_call is None:
