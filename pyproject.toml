@@ -11,7 +11,7 @@ packages = [{ include = "augmented_gpt" }]
 keywords = ["chatgpt", "gpt"]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10"
 python-dotenv = "^1.0.0"
 pandas = ">= 2.0.0"
 numpy = ">=1.22"
