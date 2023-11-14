@@ -45,9 +45,10 @@ def test_weather_and_memory_plugin():
             ),
         ]
     )
-    all_assistant_content = ""
+    all_assistant_content: str = ""
     for msg in response:
         if msg.role == Role.ASSISTANT:
+            assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""
         print(msg)
     assert "72" in all_assistant_content

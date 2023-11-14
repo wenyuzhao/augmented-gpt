@@ -29,6 +29,7 @@ def test_function_call():
     for msg in response:
         content = ""
         for delta in msg:
+            assert delta is None or isinstance(delta, str)
             content += delta
             print(" - ", delta)
         if msg.message().role == Role.ASSISTANT:

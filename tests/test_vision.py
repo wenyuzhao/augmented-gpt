@@ -1,7 +1,6 @@
 from augmented_gpt import AugmentedGPT, Message, Role
 from augmented_gpt.message import ContentPartImage, ContentPartText
 from augmented_gpt.plugins import *
-from typing import Optional
 
 
 def test_function_call():
@@ -22,6 +21,7 @@ def test_function_call():
     all_assistant_content = ""
     for msg in response:
         if msg.role == Role.ASSISTANT:
+            assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""
         print(msg)
     assert "cat" in all_assistant_content.lower()

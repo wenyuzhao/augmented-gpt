@@ -27,6 +27,7 @@ def test_function_call():
     all_assistant_content = ""
     for msg in response:
         if msg.role == Role.ASSISTANT:
+            assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""
         print(msg)
     assert "72" in all_assistant_content
