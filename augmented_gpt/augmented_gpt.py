@@ -1,12 +1,9 @@
 from typing import (
-    Callable,
     Dict,
     Generator,
     AsyncGenerator,
     List,
     Literal,
-    Sequence,
-    Tuple,
     TypeVar,
     Any,
     Generic,
@@ -15,9 +12,7 @@ from typing import (
 )
 
 from .message import *
-from dotenv import dotenv_values
-import inspect
-from inspect import Parameter
+from .tools import ToolRegistry, Tools
 import openai
 import logging
 import os
@@ -84,6 +79,20 @@ class ChatCompletion(Generic[M]):
         return self
 
 
+Models = Literal[
+    "gpt-4",
+    "gpt-4-0613",
+    "gpt-4-32k",
+    "gpt-4-32k-0613",
+    "gpt-3.5-turbo",
+    "gpt-3.5-turbo-16k",
+    # Preview versions
+    "gpt-4-1106-preview",
+    "gpt-4-vision-preview",
+    "gpt-3.5-turbo-1106",
+]
+
+
 class AugmentedGPT:
     def support_tools(self) -> bool:
         return self.model in [
@@ -93,21 +102,8 @@ class AugmentedGPT:
 
     def __init__(
         self,
-        model: str
-        | Literal[
-            "gpt-4",
-            "gpt-4-0613",
-            "gpt-4-32k",
-            "gpt-4-32k-0613",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-16k",
-            # Preview versions
-            "gpt-4-1106-preview",
-            "gpt-4-vision-preview",
-            "gpt-3.5-turbo-1106",
-        ] = "gpt-4-1106-preview",
-        functions: Optional[Sequence[Callable[..., Any]]] = None,
-        plugins: Optional[Sequence["Plugin"]] = None,
+        model: Models = "gpt-4-1106-preview",
+        tools: Optional[Tools] = None,
         debug: bool = False,
         gpt_options: Optional[GPTOptions] = None,
         api_key: Optional[str] = None,
@@ -116,24 +112,12 @@ class AugmentedGPT:
     ):
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
-        api_key = api_key or dotenv_values().get(
-            "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY")
-        )
-        assert api_key is not None, "Missing OPENAI_API_KEY"
-        self.api_key = api_key
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        assert self.api_key is not None, "Missing OPENAI_API_KEY"
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
-        self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
-        for f in functions or []:
-            self.add_function(f)
-        self.__plugins: Any = {}
-        for p in plugins or []:
-            clsname = p.__class__.__name__
-            if clsname.endswith("Plugin"):
-                clsname = clsname[:-6]
-            p.register(self)
-            self.__plugins[clsname] = p
+        self.tools = ToolRegistry(self.client, tools)
         self.__prologue = prologue or []
         self.history: List[Message] = [m for m in self.__prologue] or []
         self.inject_current_date_time = inject_current_date_time
@@ -142,58 +126,7 @@ class AugmentedGPT:
         self.history = [m for m in self.__prologue]
 
     def get_plugin(self, name: str) -> "Plugin":
-        return self.__plugins[name]
-
-    def add_function(self, f: Callable[..., Any]):
-        func_info = getattr(f, "gpt_function_call_info")
-        self.logger.info("Register-Function: " + func_info["name"])
-        self.__functions[func_info["name"]] = (func_info, f)
-
-    def __filter_args(self, callable: Callable[..., Any], args: Any):
-        p_args: List[Any] = []
-        kw_args: Dict[str, Any] = {}
-        for p in inspect.signature(callable).parameters.values():
-            match p.kind:
-                case Parameter.POSITIONAL_ONLY:
-                    p_args.append(args[p.name] if p.name in args else p.default.default)
-                case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY:
-                    kw_args[p.name] = (
-                        args[p.name] if p.name in args else p.default.default
-                    )
-                case other:
-                    raise ValueError(f"{other} is not supported")
-        return p_args, kw_args
-
-    async def __call_function(
-        self, function_call: FunctionCall, tool_id: Optional[str]
-    ) -> Message:
-        func_name = function_call.name
-        key = func_name if not func_name.startswith("functions.") else func_name[10:]
-        if tool_id is not None:
-            result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content="")
-        else:
-            result_msg = Message(role=Role.FUNCTION, name=func_name, content="")
-        try:
-            func = self.__functions[key][1]
-            arguments = function_call.arguments
-            args, kw_args = self.__filter_args(func, arguments)
-            self.logger.debug(
-                f"➡️ {func_name}: "
-                + ", ".join(str(a) for a in args)
-                + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
-            )
-            result_or_coroutine = func(*args, **kw_args)
-            if inspect.iscoroutine(result_or_coroutine):
-                result = await result_or_coroutine
-            else:
-                result = result_or_coroutine
-            if not isinstance(result, str):
-                result = json.dumps(result)
-            result_msg.content = result
-        except Exception as e:
-            print(e)
-            result_msg.content = f"Failed to execute function `{func_name}`. Please retry. Error Message: {e}"
-        return result_msg
+        return self.tools.get_plugin(name)
 
     @overload
     async def __chat_completion_request(
@@ -210,7 +143,6 @@ class AugmentedGPT:
     async def __chat_completion_request(
         self, messages: List[Message], stream: bool
     ) -> Message | MessageStream:
-        functions = [x for (x, _) in self.__functions.values()]
         msgs: List[ChatCompletionMessageParam] = [
             m.to_chat_completion_message_param() for m in messages
         ]
@@ -219,12 +151,12 @@ class AugmentedGPT:
             "messages": msgs,
             **self.gpt_options.as_kwargs(),
         }
-        if len(functions) > 0:
+        if not self.tools.is_empty():
             if self.support_tools():
-                args["tools"] = [{"type": "function", "function": f} for f in functions]
+                args["tools"] = self.tools.to_json()
                 args["tool_choice"] = "auto"
             else:
-                args["functions"] = functions
+                args["functions"] = self.tools.to_json(legacy=True)
                 args["function_call"] = "auto"
         if stream:
             response = await self.client.chat.completions.create(**args, stream=True)
@@ -277,14 +209,16 @@ class AugmentedGPT:
             if len(message.tool_calls) > 0:
                 for t in message.tool_calls:
                     assert t.type == "function"
-                    result = await self.__call_function(t.function, tool_id=t.id)
+                    result = await self.tools.call_function(t.function, tool_id=t.id)
                     history.append(result)
                     await self.__on_new_chat_message(result)
                     yield result
             else:
                 assert message.function_call is not None
                 # ChatGPT wanted to call a user-defined function
-                result = await self.__call_function(message.function_call, tool_id=None)
+                result = await self.tools.call_function(
+                    message.function_call, tool_id=None
+                )
                 history.append(result)
                 await self.__on_new_chat_message(result)
                 yield result
@@ -335,7 +269,4 @@ class AugmentedGPT:
             )
 
     async def __on_new_chat_message(self, msg: Message):
-        for p in self.__plugins.values():
-            result = p.on_new_chat_message(msg)
-            if inspect.iscoroutine(result):
-                await result
+        await self.tools.on_new_chat_message(msg)
