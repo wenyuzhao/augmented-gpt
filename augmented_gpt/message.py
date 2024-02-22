@@ -204,19 +204,23 @@ class Message:
             role=Role.from_str(m.role),
             content=m.content,
             name=m.function_call.name if m.function_call is not None else None,
-            function_call=FunctionCall.from_openai_func_call(m.function_call)
-            if m.function_call is not None
-            else None,
-            tool_calls=[
-                ToolCall(
-                    id=t.id,
-                    function=FunctionCall.from_openai_func_call(t.function),
-                    type=t.type,
-                )
-                for t in m.tool_calls
-            ]
-            if m.tool_calls is not None
-            else [],
+            function_call=(
+                FunctionCall.from_openai_func_call(m.function_call)
+                if m.function_call is not None
+                else None
+            ),
+            tool_calls=(
+                [
+                    ToolCall(
+                        id=t.id,
+                        function=FunctionCall.from_openai_func_call(t.function),
+                        type=t.type,
+                    )
+                    for t in m.tool_calls
+                ]
+                if m.tool_calls is not None
+                else []
+            ),
         )
 
     async def __aiter__(self):

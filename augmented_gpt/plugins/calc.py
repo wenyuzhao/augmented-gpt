@@ -3,7 +3,7 @@ from . import Plugin
 
 
 class CalculatorPlugin(Plugin):
-    @function
+    @tool
     def evaluate(
         self,
         expression: str = param(

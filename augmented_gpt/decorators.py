@@ -34,7 +34,7 @@ def param(
 R = TypeVar("R", Coroutine[Any, Any, Optional[JSON | str]], Optional[JSON | str])
 
 
-def function(callable: Callable[..., R]) -> Callable[..., R]:
+def tool(callable: Callable[..., R]) -> Callable[..., R]:
     # Get function name
     fname = callable.__name__
     # Get parameter info

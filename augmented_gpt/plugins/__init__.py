@@ -14,12 +14,11 @@ class Plugin:
     def register(self, client: openai.AsyncOpenAI):
         self.client = client
 
-    def on_new_chat_message(self, msg: Message) -> Any:
-        ...
+    def on_new_chat_message(self, msg: Message) -> Any: ...
 
 
 class TimestampPlugin(Plugin):
-    @function
+    @tool
     def get_current_timestamp(self):
         """Get the current tempstamp in ISO format"""
         return datetime.datetime.now().isoformat()
