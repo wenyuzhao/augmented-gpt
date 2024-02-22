@@ -106,7 +106,9 @@ class ToolRegistry:
             result_msg.content = result
         except Exception as e:
             print(e)
-            result_msg.content = f"Failed to execute function `{func_name}`. Please retry. Error Message: {e}"
+            result_msg.content = json.dumps(
+                {"error": f"Failed to run tool `{func_name}`: {e}"}
+            )
         return result_msg
 
     async def on_new_chat_message(self, msg: Message):
