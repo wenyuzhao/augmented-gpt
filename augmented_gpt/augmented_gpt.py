@@ -95,10 +95,7 @@ Models = Literal[
 
 class AugmentedGPT:
     def support_tools(self) -> bool:
-        return self.model in [
-            "gpt-4-1106-preview",
-            "gpt-3.5-turbo-1106",
-        ]
+        return "vision" not in self.model
 
     def __init__(
         self,
@@ -131,14 +128,12 @@ class AugmentedGPT:
     @overload
     async def __chat_completion_request(
         self, messages: List[Message], stream: Literal[False]
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     @overload
     async def __chat_completion_request(
         self, messages: List[Message], stream: Literal[True]
-    ) -> MessageStream:
-        ...
+    ) -> MessageStream: ...
 
     async def __chat_completion_request(
         self, messages: List[Message], stream: bool
@@ -154,7 +149,10 @@ class AugmentedGPT:
         if not self.tools.is_empty():
             if self.support_tools():
                 args["tools"] = self.tools.to_json()
-                args["tool_choice"] = "auto"
+                args["tool_choice"] = {
+                    "type": "function",
+                    "function": {"name": "body_action"},
+                }
             else:
                 args["functions"] = self.tools.to_json(legacy=True)
                 args["function_call"] = "auto"
@@ -171,14 +169,12 @@ class AugmentedGPT:
         messages: List[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
-    ) -> Generator[Message, None, None]:
-        ...
+    ) -> Generator[Message, None, None]: ...
 
     @overload
     async def __chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> Generator[Message | MessageStream, None, None]:
-        ...
+    ) -> Generator[Message | MessageStream, None, None]: ...
 
     async def __chat_completion(
         self,
@@ -242,14 +238,12 @@ class AugmentedGPT:
         messages: List[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
-    ) -> ChatCompletion[Message]:
-        ...
+    ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[Message | MessageStream]:
-        ...
+    ) -> ChatCompletion[Message | MessageStream]: ...
 
     def chat_completion(
         self,
