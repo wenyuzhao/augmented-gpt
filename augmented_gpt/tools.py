@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class ToolRegistry:
-    def __init__(self, client: AugmentedGPT, tools: Tools | None = None) -> None:
+    def __init__(self, client: "AugmentedGPT", tools: Tools | None = None) -> None:
         self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
         self.__plugins: Any = {}
         self.__client = client
