@@ -1,9 +1,7 @@
 import inspect
 from inspect import Parameter
 import json
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-
-from openai import AsyncOpenAI
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from augmented_gpt.message import JSON, FunctionCall, Message, Role
 
@@ -13,9 +11,12 @@ Tool = Plugin | Callable[..., Any]
 
 Tools = Sequence[Tool]
 
+if TYPE_CHECKING:
+    from .augmented_gpt import AugmentedGPT
+
 
 class ToolRegistry:
-    def __init__(self, client: AsyncOpenAI, tools: Tools | None = None) -> None:
+    def __init__(self, client: AugmentedGPT, tools: Tools | None = None) -> None:
         self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
         self.__plugins: Any = {}
         self.__client = client

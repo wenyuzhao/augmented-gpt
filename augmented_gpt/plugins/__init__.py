@@ -1,17 +1,19 @@
-import openai
-
 from ..decorators import *
 from ..message import Message
 import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..augmented_gpt import AugmentedGPT
 
 
 class Plugin:
-    client: openai.AsyncOpenAI
-
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, config: Any = None):
         self.name = name or self.__class__.__name__
+        self.config = config
+        self.client: AugmentedGPT
 
-    def register(self, client: openai.AsyncOpenAI):
+    def register(self, client: AugmentedGPT):
         self.client = client
 
     def on_new_chat_message(self, msg: Message) -> Any: ...

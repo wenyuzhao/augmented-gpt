@@ -118,7 +118,7 @@ class AugmentedGPT:
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
-        self.tools = ToolRegistry(self.client, tools)
+        self.tools = ToolRegistry(self, tools)
         self.__prologue = prologue or []
         self.history: List[Message] = [m for m in self.__prologue] or []
         self.inject_current_date_time = inject_current_date_time
