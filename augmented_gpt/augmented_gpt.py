@@ -1,4 +1,5 @@
 from typing import (
+    Callable,
     Dict,
     Generator,
     AsyncGenerator,
@@ -79,18 +80,21 @@ class ChatCompletion(Generic[M]):
         return self
 
 
-Models = Literal[
-    "gpt-4",
-    "gpt-4-0613",
-    "gpt-4-32k",
-    "gpt-4-32k-0613",
-    "gpt-3.5-turbo",
-    "gpt-3.5-turbo-16k",
-    # Preview versions
-    "gpt-4-1106-preview",
-    "gpt-4-vision-preview",
-    "gpt-3.5-turbo-1106",
-]
+Models = (
+    Literal[
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-4-32k",
+        "gpt-4-32k-0613",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-16k",
+        # Preview versions
+        "gpt-4-1106-preview",
+        "gpt-4-vision-preview",
+        "gpt-3.5-turbo-1106",
+    ]
+    | str
+)
 
 
 class AugmentedGPT:
@@ -109,15 +113,18 @@ class AugmentedGPT:
     ):
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        assert self.api_key is not None, "Missing OPENAI_API_KEY"
+        _api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        assert _api_key is not None, "Missing OPENAI_API_KEY"
+        self.api_key = _api_key
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.logger = logging.getLogger("AugmentedGPT")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
-        self.tools = ToolRegistry(self.client, tools)
+        self.tools = ToolRegistry(self, tools)
         self.__prologue = prologue or []
         self.history: List[Message] = [m for m in self.__prologue] or []
         self.inject_current_date_time = inject_current_date_time
+        self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
+        self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
 
     def reset(self):
         self.history = [m for m in self.__prologue]
@@ -149,10 +156,7 @@ class AugmentedGPT:
         if not self.tools.is_empty():
             if self.support_tools():
                 args["tools"] = self.tools.to_json()
-                args["tool_choice"] = {
-                    "type": "function",
-                    "function": {"name": "body_action"},
-                }
+                args["tool_choice"] = "auto"
             else:
                 args["functions"] = self.tools.to_json(legacy=True)
                 args["function_call"] = "auto"

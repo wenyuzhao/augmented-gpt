@@ -1,10 +1,10 @@
-from augmented_gpt import AugmentedGPT, Message, Role, param, function
+from augmented_gpt import AugmentedGPT, Message, Role, param, tool
 from augmented_gpt.plugins import *
 from typing import Optional
 
 
 class FakeWeatherPlugin(Plugin):
-    @function
+    @tool
     def get_current_weather(
         self,
         location: str = param("The city and state, e.g. San Francisco, CA"),
@@ -27,7 +27,7 @@ def test_weather_and_memory_plugin():
         f.write("")
     gpt = AugmentedGPT(
         model="gpt-3.5-turbo",
-        plugins=[FakeWeatherPlugin(), MemoryPlugin(data_file=file)],
+        tools=[FakeWeatherPlugin(), MemoryPlugin(data_file=file)],
     )
     response = gpt.chat_completion(
         [
@@ -36,7 +36,7 @@ def test_weather_and_memory_plugin():
     )
     for msg in response:
         print(msg)
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", plugins=[MemoryPlugin(file)])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[MemoryPlugin(file)])
     response = gpt.chat_completion(
         [
             Message(

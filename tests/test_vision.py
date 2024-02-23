@@ -3,7 +3,7 @@ from augmented_gpt.message import ContentPartImage, ContentPartText
 from augmented_gpt.plugins import *
 
 
-def test_function_call():
+def test_vision():
     gpt = AugmentedGPT(model="gpt-4-vision-preview")
     response = gpt.chat_completion(
         [

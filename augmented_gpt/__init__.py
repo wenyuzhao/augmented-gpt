@@ -1,13 +1,10 @@
 from __future__ import annotations
-from dotenv import load_dotenv
-
-load_dotenv()
 
 import logging
 
 logging.basicConfig(format="[%(levelname)s:%(name)s] %(message)s")
 
-from .decorators import param, function
+from .decorators import param, tool
 from .message import (
     MessageStream,
     Message,
@@ -26,7 +23,7 @@ from . import utils
 __all__ = [
     "utils",
     "param",
-    "function",
+    "tool",
     "Message",
     "MessageStream",
     "Role",

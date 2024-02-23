@@ -1,11 +1,11 @@
-from augmented_gpt import AugmentedGPT, Message, Role, param, function
+from augmented_gpt import AugmentedGPT, Message, Role, param, tool
 from augmented_gpt.plugins import *
 from typing import Optional
 import pytest
 import asyncio
 
 
-@function
+@tool
 async def get_current_weather(
     location: str = param("The city and state, e.g. San Francisco, CA"),
     unit: Optional[str] = param(enum=["celsius", "fahrenheit"], default="fahrenheit"),
@@ -22,7 +22,7 @@ async def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", functions=[get_current_weather])
+    gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[get_current_weather])
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),

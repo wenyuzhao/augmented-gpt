@@ -30,7 +30,7 @@ class MemoryPlugin(Plugin):
     async def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
         return (
-            (await self.gpt.client.embeddings.create(input=[text], model=model))
+            (await self.client.embeddings.create(input=[text], model=model))
             .data[0]
             .embedding
         )
@@ -39,7 +39,7 @@ class MemoryPlugin(Plugin):
         f = open(self.data_file, "w")
         f.close()
 
-    @function
+    @tool
     async def search_from_memory(
         self,
         query: str = param("The query of the search"),
@@ -67,7 +67,7 @@ class MemoryPlugin(Plugin):
             n += 1
         return results
 
-    @function
+    @tool
     async def remember(
         self,
         content: str = param("The content to remember in the memory"),
