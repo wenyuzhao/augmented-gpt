@@ -1,6 +1,10 @@
 from augmented_gpt import AugmentedGPT, Message, Role, param, tool
 from augmented_gpt.plugins import *
 from typing import Optional
+import pytest
+import dotenv
+
+dotenv.load_dotenv()
 
 
 class FakeWeatherPlugin(Plugin):
@@ -21,7 +25,8 @@ class FakeWeatherPlugin(Plugin):
         }
 
 
-def test_weather_and_memory_plugin():
+@pytest.mark.asyncio
+async def test_weather_and_memory_plugin():
     file = "_test-data.csv"
     with open(file, "w+") as f:
         f.write("")
@@ -34,7 +39,7 @@ def test_weather_and_memory_plugin():
             Message(role=Role.USER, content="What is the weather like in boston?"),
         ]
     )
-    for msg in response:
+    async for msg in response:
         print(msg)
     gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[MemoryPlugin(file)])
     response = gpt.chat_completion(
@@ -46,7 +51,7 @@ def test_weather_and_memory_plugin():
         ]
     )
     all_assistant_content: str = ""
-    for msg in response:
+    async for msg in response:
         if msg.role == Role.ASSISTANT:
             assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""

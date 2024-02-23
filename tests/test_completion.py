@@ -2,6 +2,9 @@ from augmented_gpt import AugmentedGPT, Message, Role, param, tool
 from augmented_gpt.plugins import *
 from typing import Optional
 import pytest
+import dotenv
+
+dotenv.load_dotenv()
 
 
 @tool
@@ -24,17 +27,12 @@ async def test_function_call():
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),
-        ],
-        stream=True,
+        ]
     )
     all_assistant_content = ""
     async for msg in response:
-        content = ""
-        async for delta in msg:
-            assert delta is None or isinstance(delta, str)
-            content += delta
-            print(" - ", delta)
-        if msg.message().role == Role.ASSISTANT:
-            all_assistant_content += content
-        print(msg.message())
+        if msg.role == Role.ASSISTANT:
+            assert msg.content is None or isinstance(msg.content, str)
+            all_assistant_content += msg.content or ""
+        print(msg)
     assert "72" in all_assistant_content

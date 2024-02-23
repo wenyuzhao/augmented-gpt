@@ -18,7 +18,6 @@ import openai
 import logging
 import os
 from openai.types.chat import ChatCompletionMessageParam
-import asyncio
 from datetime import datetime
 
 from typing import TYPE_CHECKING
@@ -66,17 +65,6 @@ class ChatCompletion(Generic[M]):
         return await self.__agen.__anext__()
 
     def __aiter__(self):
-        return self
-
-    def __next__(self) -> M:
-        loop = asyncio.get_event_loop()
-        try:
-            result = loop.run_until_complete(self.__anext__())
-            return result
-        except StopAsyncIteration:
-            raise StopIteration()
-
-    def __iter__(self):
         return self
 
 
@@ -199,7 +187,7 @@ class AugmentedGPT:
         if stream:
             s = await self.__chat_completion_request(history, stream=True)
             yield s
-            message = s.message()
+            message = await s.message()
         else:
             message = await self.__chat_completion_request(history, stream=False)
             yield message
@@ -227,7 +215,7 @@ class AugmentedGPT:
             if stream:
                 r = await self.__chat_completion_request(history, stream=True)
                 yield r
-                message = r.message()
+                message = await r.message()
             else:
                 message = await self.__chat_completion_request(history, stream=False)
                 yield message
