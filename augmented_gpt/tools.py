@@ -28,6 +28,11 @@ class ToolRegistry:
 
     def __add_function(self, f: Callable[..., Any]):
         func_info = getattr(f, "gpt_function_call_info")
+        func_info = {
+            "name": func_info["name"],
+            "description": func_info["description"],
+            "parameters": func_info["parameters"],
+        }
         self.__functions[func_info["name"]] = (func_info, f)
 
     def __add_plugin(self, p: Plugin):
@@ -36,7 +41,7 @@ class ToolRegistry:
             if not hasattr(method, "gpt_function_call_info"):
                 continue
             func_info = getattr(method, "gpt_function_call_info")
-            clsname = self.__class__.__name__
+            clsname = p.__class__.__name__
             if clsname.endswith("Plugin"):
                 clsname = clsname[:-6]
             if not func_info["name"].startswith(clsname + "-"):
@@ -77,7 +82,23 @@ class ToolRegistry:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
 
-    # async def call_tools(self, tool_calls: List[FunctionCall]) -> List[Message]:
+    async def __on_tool_start(
+        self, func: Callable[..., Any], tool_id: str | None, args: JSON
+    ):
+        display_name = getattr(func, "gpt_function_call_info")["display_name"]
+        if self.__client.on_tool_start is not None and tool_id is not None:
+            await self.__client.on_tool_start(tool_id, display_name, args)
+
+    async def __on_tool_end(
+        self,
+        func: Callable[..., Any],
+        tool_id: str | None,
+        args: JSON,
+        result: JSON,
+    ):
+        display_name = getattr(func, "gpt_function_call_info")["display_name"]
+        if self.__client.on_tool_end is not None and tool_id is not None:
+            await self.__client.on_tool_end(tool_id, display_name, args, result)
 
     async def call_function(
         self, function_call: FunctionCall, tool_id: Optional[str]
@@ -88,28 +109,23 @@ class ToolRegistry:
             result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content="")
         else:
             result_msg = Message(role=Role.FUNCTION, name=func_name, content="")
+        func = self.__functions[key][1]
+        arguments = function_call.arguments
+        args, kw_args = self.__filter_args(func, arguments)
+        await self.__on_tool_start(func, tool_id, arguments)
         try:
-            func = self.__functions[key][1]
-            arguments = function_call.arguments
-            args, kw_args = self.__filter_args(func, arguments)
-            # self.logger.debug(
-            #     f"➡️ {func_name}: "
-            #     + ", ".join(str(a) for a in args)
-            #     + ", ".join((f"{k}={v}" for k, v in kw_args.items()))
-            # )
             result_or_coroutine = func(*args, **kw_args)
             if inspect.iscoroutine(result_or_coroutine):
                 result = await result_or_coroutine
             else:
                 result = result_or_coroutine
-            if not isinstance(result, str):
-                result = json.dumps(result)
-            result_msg.content = result
         except Exception as e:
             print(e)
-            result_msg.content = json.dumps(
-                {"error": f"Failed to run tool `{func_name}`: {e}"}
-            )
+            result = {"error": f"Failed to run tool `{func_name}`: {e}"}
+        await self.__on_tool_end(func, tool_id, arguments, result)
+        if not isinstance(result, str):
+            result = json.dumps(result)
+        result_msg.content = result
         return result_msg
 
     async def on_new_chat_message(self, msg: Message):

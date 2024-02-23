@@ -10,7 +10,10 @@ from typing import (
 )
 import json
 from dataclasses import dataclass, field
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+from openai.types.chat.chat_completion_chunk import (
+    ChatCompletionChunk,
+    ChoiceDeltaToolCall,
+)
 import openai
 from openai.types.chat import (
     ChatCompletionChunk,
@@ -248,7 +251,39 @@ class MessageStream:
         self.__response = response
         self.__aiter = response.__aiter__()
         self.__message = Message(role=Role.ASSISTANT)
+        self.__tool_calls: list[ChoiceDeltaToolCall] = []
         self.__final_message: Optional[Message] = None
+
+    def __get_final_merged_tool_calls(self) -> list[ToolCall]:
+        return [
+            ToolCall(
+                id=t.id or "",
+                function=FunctionCall(
+                    name=t.function.name or "",
+                    arguments=json.loads(t.function.arguments or ""),
+                ),
+                type="function",
+            )
+            for t in self.__tool_calls
+            if t.function is not None
+        ]
+
+    def __merge_tool_calls(self, delta: list[ChoiceDeltaToolCall]):
+        for d in delta:
+            if d.index < len(self.__tool_calls):
+                t = self.__tool_calls[d.index]
+                assert t.id is not None
+                t.id += d.id or ""
+                assert t.function is not None
+                assert d.function is not None
+                t.function.name = (t.function.name or "") + (d.function.name or "")
+                t.function.arguments = (t.function.arguments or "") + (
+                    d.function.arguments or ""
+                )
+            else:
+                assert d.index == len(self.__tool_calls)
+                assert d.function is not None
+                self.__tool_calls.append(d)
 
     async def __anext__impl(self) -> str:
         if self.__final_message is not None:
@@ -262,10 +297,10 @@ class MessageStream:
                     self.__message.function_call.arguments = {}
                 else:
                     self.__message.function_call.arguments = json.loads(args)
+            self.__message.tool_calls = self.__get_final_merged_tool_calls()
             self.__final_message = self.__message
             raise StopAsyncIteration()
         if hasattr(chunk, "error"):
-            print(chunk)
             raise ServerError(chunk.error["message"])  # type: ignore
         delta = chunk.choices[0].delta
         # merge self.__message and delta
@@ -285,6 +320,8 @@ class MessageStream:
                 self.__message.function_call.arguments = (
                     s + delta.function_call.arguments
                 )
+        if delta.tool_calls is not None:
+            self.__merge_tool_calls(delta.tool_calls)
         if delta.role is not None:
             self.__message.role = Role.from_str(delta.role)
         return delta.content or ""

@@ -1,4 +1,5 @@
 from typing import (
+    Callable,
     Dict,
     Generator,
     AsyncGenerator,
@@ -122,6 +123,8 @@ class AugmentedGPT:
         self.__prologue = prologue or []
         self.history: List[Message] = [m for m in self.__prologue] or []
         self.inject_current_date_time = inject_current_date_time
+        self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
+        self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
 
     def reset(self):
         self.history = [m for m in self.__prologue]
