@@ -36,7 +36,6 @@ from openai.types.chat.chat_completion_assistant_message_param import (
 from openai.types.chat.chat_completion_message_tool_call import (
     Function as OpenAIFunction,
 )
-import asyncio
 from enum import StrEnum
 
 JSON: TypeAlias = (
@@ -230,11 +229,7 @@ class Message:
         if self.content is not None:
             yield self.content
 
-    def __iter__(self):
-        if self.content is not None:
-            yield self.content
-
-    def message(self) -> "Message":
+    async def message(self) -> "Message":
         return self
 
 
@@ -335,23 +330,10 @@ class MessageStream:
     def __aiter__(self):
         return self
 
-    def __next__(self) -> str:
-        if self.__final_message is not None:
-            raise StopIteration()
-        loop = asyncio.get_event_loop()
-        try:
-            result = loop.run_until_complete(self.__anext__())
-            return result
-        except StopAsyncIteration:
-            raise StopIteration()
-
-    def __iter__(self):
-        return self
-
-    def message(self) -> Message:
+    async def message(self) -> Message:
         if self.__final_message is not None:
             return self.__final_message
-        for _ in self:
+        async for _ in self:
             ...
         assert self.__final_message is not None
         return self.__final_message

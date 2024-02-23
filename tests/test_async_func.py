@@ -3,6 +3,9 @@ from augmented_gpt.plugins import *
 from typing import Optional
 import pytest
 import asyncio
+import dotenv
+
+dotenv.load_dotenv()
 
 
 @tool

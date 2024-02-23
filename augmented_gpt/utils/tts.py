@@ -29,15 +29,5 @@ class TextToSpeech:
         )
         response.stream_to_file(output)
 
-    def speak_sync(
-        self,
-        text: str,
-        output: str | Path,
-        voice: Optional[Voice] = None,
-    ):
-        from . import block_on
-
-        block_on(self.speak(text, output, voice))
-
 
 __all__ = ["TextToSpeech", "Voice"]

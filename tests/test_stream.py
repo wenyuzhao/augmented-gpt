@@ -1,6 +1,10 @@
 from augmented_gpt import AugmentedGPT, Message, Role, param, tool
 from augmented_gpt.plugins import *
 from typing import Optional
+import pytest
+import dotenv
+
+dotenv.load_dotenv()
 
 
 @tool
@@ -17,17 +21,23 @@ def get_current_weather(
     }
 
 
-def test_function_call():
+@pytest.mark.asyncio
+async def test_function_call():
     gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[get_current_weather])
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),
-        ]
+        ],
+        stream=True,
     )
     all_assistant_content = ""
-    for msg in response:
-        if msg.role == Role.ASSISTANT:
-            assert msg.content is None or isinstance(msg.content, str)
-            all_assistant_content += msg.content or ""
-        print(msg)
+    async for msg in response:
+        content = ""
+        async for delta in msg:
+            assert delta is None or isinstance(delta, str)
+            content += delta
+            print(" - ", delta)
+        if (await msg.message()).role == Role.ASSISTANT:
+            all_assistant_content += content
+        print(await msg.message())
     assert "72" in all_assistant_content

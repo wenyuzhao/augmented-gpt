@@ -16,10 +16,5 @@ class SpeechToText:
             )
             return transcript.text
 
-    def transcribe_sync(self, path: str | Path) -> str:
-        from . import block_on
-
-        return block_on(self.transcribe(path))
-
 
 __all__ = ["SpeechToText"]
