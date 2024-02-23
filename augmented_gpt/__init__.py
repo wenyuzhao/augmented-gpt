@@ -17,7 +17,8 @@ from .message import (
 )
 from .plugins import Plugin
 from . import plugins
-from .augmented_gpt import AugmentedGPT, GPTOptions, ChatCompletion, ServerError
+from .augmented_gpt import AugmentedGPT, ChatCompletion, ServerError
+from .gpt import GPTOptions, GPTModel
 from . import utils
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "AugmentedGPT",
     "ChatCompletion",
     "GPTOptions",
+    "GPTModel",
     "ServerError",
     "ToolCall",
     "FunctionCall",

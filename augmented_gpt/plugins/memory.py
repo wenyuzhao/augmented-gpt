@@ -30,7 +30,11 @@ class MemoryPlugin(Plugin):
     async def __get_embedding(self, text: str, model: str = "text-embedding-ada-002"):
         # text = text.replace("\n", " ")
         return (
-            (await self.client.client.embeddings.create(input=[text], model=model))
+            (
+                await self.client.openai_client.embeddings.create(
+                    input=[text], model=model
+                )
+            )
             .data[0]
             .embedding
         )
