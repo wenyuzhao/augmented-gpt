@@ -29,16 +29,15 @@ class GPTAssistantBackend(LLMBackend):
         tools: ToolRegistry,
         gpt_options: GPTOptions,
         api_key: str,
-        prologue: list[Message],
+        instructions: Optional[str],
         name: Optional[str],
         description: Optional[str],
         debug: bool,
     ) -> None:
         super().__init__(
-            model, tools, gpt_options, api_key, prologue, name, description, debug
+            model, tools, gpt_options, api_key, instructions, name, description, debug
         )
-        self.history: list[Message] = [m for m in self._prologue] or []
-        self.__instructions: str | None = None
+        self.__instructions = instructions
         self.__assistant = self.__create_or_retrieve_assistant(None)
         self.__thread = self.__create_thread_sync(None)
 
@@ -86,22 +85,16 @@ class GPTAssistantBackend(LLMBackend):
 
     @overload
     async def __chat_completion(
-        self,
-        messages: list[Message],
-        stream: Literal[False] = False,
-        context_free: bool = False,
+        self, messages: list[Message], stream: Literal[False] = False
     ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+        self, messages: list[Message], stream: Literal[True]
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(  # type: ignore
-        self,
-        messages: list[Message],
-        stream: bool = False,
-        context_free: bool = False,
+        self, messages: list[Message], stream: bool = False
     ):
         assert not stream
         # Add messages
@@ -117,33 +110,21 @@ class GPTAssistantBackend(LLMBackend):
 
     @overload
     def chat_completion(
-        self,
-        messages: list[Message],
-        stream: Literal[False] = False,
-        context_free: bool = False,
+        self, messages: list[Message], stream: Literal[False] = False
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+        self, messages: list[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self,
-        messages: list[Message],
-        stream: bool = False,
-        context_free: bool = False,
+        self, messages: list[Message], stream: bool = False
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(
-                self.__chat_completion(messages, stream=True, context_free=context_free)
-            )
+            return ChatCompletion(self.__chat_completion(messages, stream=True))
         else:
-            return ChatCompletion(
-                self.__chat_completion(
-                    messages, stream=False, context_free=context_free
-                )
-            )
+            return ChatCompletion(self.__chat_completion(messages, stream=False))
 
 
 class Thread:

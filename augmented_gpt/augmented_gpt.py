@@ -45,7 +45,7 @@ class AugmentedGPT:
         tools: Optional[Tools] = None,
         gpt_options: Optional["GPTOptions"] = None,
         api_key: Optional[str] = None,
-        prologue: Optional[List[Message]] = None,
+        instructions: Optional[str] = None,
         api: Literal["chat", "assistant"] = "chat",
         name: Optional[str] = None,
         description: Optional[str] = None,
@@ -63,7 +63,7 @@ class AugmentedGPT:
                 tools=ToolRegistry(self, tools),
                 gpt_options=gpt_options or GPTOptions(),
                 api_key=_api_key,
-                prologue=prologue or [],
+                instructions=instructions,
                 name=name,
                 description=description,
                 debug=debug,
@@ -74,7 +74,7 @@ class AugmentedGPT:
                 tools=ToolRegistry(self, tools),
                 gpt_options=gpt_options or GPTOptions(),
                 api_key=_api_key,
-                prologue=prologue or [],
+                instructions=instructions,
                 name=name,
                 description=description,
                 debug=debug,
@@ -98,25 +98,25 @@ class AugmentedGPT:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
-        context_free: bool = False,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
+        self, messages: List[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
-        context_free: bool = False,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return self.__backend.chat_completion(
-                messages, stream=True, context_free=context_free
+                messages,
+                stream=True,
             )
         else:
             return self.__backend.chat_completion(
-                messages, stream=False, context_free=context_free
+                messages,
+                stream=False,
             )

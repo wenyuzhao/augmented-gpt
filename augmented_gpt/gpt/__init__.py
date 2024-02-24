@@ -63,7 +63,7 @@ class LLMBackend:
         tools: ToolRegistry,
         gpt_options: GPTOptions,
         api_key: str,
-        prologue: list[Message],
+        instructions: Optional[str],
         name: Optional[str],
         description: Optional[str],
         debug: bool,
@@ -78,7 +78,7 @@ class LLMBackend:
         self.logger = logging.getLogger("AugmentedGPT")
         # self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.tools = tools
-        self._prologue = prologue or []
+        self.instructions = instructions
 
     def init(self):
         pass
@@ -91,19 +91,17 @@ class LLMBackend:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
-        context_free: bool = False,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
+        self, messages: List[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
-        context_free: bool = False,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         raise NotImplementedError
 
