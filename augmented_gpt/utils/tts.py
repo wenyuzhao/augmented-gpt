@@ -2,6 +2,7 @@ from typing import Literal, Optional
 
 import openai
 from pathlib import Path
+import os
 
 Voice = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
@@ -9,11 +10,13 @@ Voice = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 class TextToSpeech:
     def __init__(
         self,
-        api_key: str,
         model: Literal["tts-1", "tts-1-hd"] = "tts-1",
         voice: Voice = "alloy",
+        api_key: str | None = None,
     ):
-        self.client = openai.AsyncOpenAI(api_key=api_key)
+        self.client = openai.AsyncOpenAI(
+            api_key=api_key or os.environ.get("OPENAI_API_KEY")
+        )
         self.voice: Voice = voice
         self.model = model
 

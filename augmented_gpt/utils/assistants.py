@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import openai
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 
 
@@ -27,7 +27,7 @@ class AssistantManager:
                         id=a.id,
                         name=a.name,
                         description=a.description,
-                        created_at=datetime.utcfromtimestamp(a.created_at),
+                        created_at=datetime.fromtimestamp(a.created_at, UTC),
                     )
                 )
             assistants = self.client.beta.assistants.list(

@@ -2,11 +2,16 @@ from typing import Literal
 
 import openai
 from pathlib import Path
+import os
 
 
 class SpeechToText:
-    def __init__(self, api_key: str, model: Literal["whisper-1"] = "whisper-1"):
-        self.client = openai.AsyncOpenAI(api_key=api_key)
+    def __init__(
+        self, model: Literal["whisper-1"] = "whisper-1", api_key: str | None = None
+    ):
+        self.client = openai.AsyncOpenAI(
+            api_key=api_key or os.environ.get("OPENAI_API_KEY")
+        )
         self.model = model
 
     async def transcribe(self, path: str | Path) -> str:
