@@ -1,8 +1,7 @@
 import asyncio
 from typing import (
+    AsyncGenerator,
     Awaitable,
-    Generator,
-    List,
     Literal,
     Any,
     overload,
@@ -13,8 +12,6 @@ from augmented_gpt.gpt import ChatGPTBackend, GPTModel, GPTOptions
 from augmented_gpt.tools import ToolRegistry
 
 from ..message import *
-
-# from openai.types.chat import ChatCompletionMessageParam
 
 import openai
 from openai._types import NOT_GIVEN
@@ -88,62 +85,26 @@ class AssistantBackend(ChatGPTBackend):
     async def delete_thread(self, thread_id: str):
         await self.client.beta.threads.delete(thread_id)
 
-    # @overload
-    # async def __chat_completion_request(
-    #     self, messages: List[Message], stream: Literal[False]
-    # ) -> Message: ...
-
-    # @overload
-    # async def __chat_completion_request(
-    #     self, messages: List[Message], stream: Literal[True]
-    # ) -> MessageStream: ...
-
-    # async def __chat_completion_request(
-    #     self, messages: List[Message], stream: bool
-    # ) -> Message | MessageStream:
-    #     # msgs: List[ChatCompletionMessageParam] = [
-    #     #     m.to_chat_completion_message_param() for m in messages
-    #     # ]
-    #     # args: Any = {
-    #     #     "model": self.model,
-    #     #     "messages": msgs,
-    #     #     **self.gpt_options.as_kwargs(),
-    #     # }
-    #     # if not self.tools.is_empty():
-    #     #     assert self.support_tools(), "Incompatible model for assistant api"
-    #     #     args["tools"] = self.tools.to_json()
-    #     #     args["tool_choice"] = "auto"
-    #     assert not stream
-    #     raise NotImplementedError
-
-    # Send the request
-
-    # if stream:
-    #     response = await self.client.chat.completions.create(**args, stream=True)
-    #     return MessageStream(response)
-    # else:
-    #     response = await self.client.chat.completions.create(**args, stream=False)
-    #     return Message.from_chat_completion_message(response.choices[0].message)
-
     @overload
     async def __chat_completion(
         self,
-        messages: List[Message],
+        messages: list[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
-    ) -> Generator[Message, None, None]: ...
+    ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> Generator[Message | MessageStream, None, None]: ...
+        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+    ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(  # type: ignore
         self,
-        messages: List[Message],
+        messages: list[Message],
         stream: bool = False,
         context_free: bool = False,
     ):
+        assert not stream
         # Add messages
         for m in messages:
             await self._on_new_chat_message(m)
@@ -152,61 +113,28 @@ class AssistantBackend(ChatGPTBackend):
         # # Run the thread
         run = await self.__thread.run()
         async for m in run:
-            msg: Message | MessageStream = Message(role=Role.USER, content=m)
+            msg = Message(role=Role.USER, content=m)
             yield msg
-
-        # First completion request
-        # message: Message
-        # if stream:
-        #     s = await self.__chat_completion_request(messages, stream=True)
-        #     yield s
-        #     message = await s.message()
-        # else:
-        #     message = await self.__chat_completion_request(messages, stream=False)
-        #     yield message
-        # # history.append(message)
-        # await self._on_new_chat_message(message)
-        # while len(message.tool_calls) > 0:
-        #     # Run tools
-        #     results: list[Message] = []
-        #     for t in message.tool_calls:
-        #         assert t.type == "function"
-        #         result = await self.tools.call_function(t.function, tool_id=t.id)
-        #         results.append(result)
-        #         await self._on_new_chat_message(result)
-        #         yield result
-        #     # Submit results
-
-        #     if stream:
-        #         r = await self.__chat_completion_request(results, stream=True)
-        #         yield r
-        #         message = await r.message()
-        #     else:
-        #         message = await self.__chat_completion_request(results, stream=False)
-        #         yield message
-        #     await self._on_new_chat_message(message)
-        # if not context_free:
-        #     self.history.extend(history[old_history_length:])
 
     @overload
     def chat_completion(
         self,
-        messages: List[Message],
+        messages: list[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[Message | MessageStream]: ...
+        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+    ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
         context_free: bool = False,
-    ) -> ChatCompletion[Message | MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return ChatCompletion(
                 self.__chat_completion(messages, stream=True, context_free=context_free)
@@ -267,7 +195,7 @@ class Thread:
         return Run(self, run, msg.id)
 
 
-class Run(MessageStream):
+class Run:
     def __init__(self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None):
         self.thread = thread
         self.__run = run

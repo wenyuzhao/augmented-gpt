@@ -1,6 +1,5 @@
 from typing import (
-    Generator,
-    List,
+    AsyncGenerator,
     Literal,
     Any,
     overload,
@@ -36,18 +35,18 @@ class ChatBackend(ChatGPTBackend):
 
     @overload
     async def __chat_completion_request(
-        self, messages: List[Message], stream: Literal[False]
+        self, messages: list[Message], stream: Literal[False]
     ) -> Message: ...
 
     @overload
     async def __chat_completion_request(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True]
     ) -> MessageStream: ...
 
     async def __chat_completion_request(
-        self, messages: List[Message], stream: bool
+        self, messages: list[Message], stream: bool
     ) -> Message | MessageStream:
-        msgs: List[ChatCompletionMessageParam] = [
+        msgs: list[ChatCompletionMessageParam] = [
             m.to_chat_completion_message_param() for m in messages
         ]
         args: Any = {
@@ -72,15 +71,15 @@ class ChatBackend(ChatGPTBackend):
     @overload
     async def __chat_completion(
         self,
-        messages: List[Message],
+        messages: list[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
-    ) -> Generator[Message, None, None]: ...
+    ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> Generator[Message | MessageStream, None, None]: ...
+        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+    ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(
         self,
@@ -138,22 +137,22 @@ class ChatBackend(ChatGPTBackend):
     @overload
     def chat_completion(
         self,
-        messages: List[Message],
+        messages: list[Message],
         stream: Literal[False] = False,
         context_free: bool = False,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[Message | MessageStream]: ...
+        self, messages: list[Message], stream: Literal[True], context_free: bool = False
+    ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
         context_free: bool = False,
-    ) -> ChatCompletion[Message | MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return ChatCompletion(
                 self.__chat_completion(messages, stream=True, context_free=context_free)

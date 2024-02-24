@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .plugins import Plugin
     from .gpt import GPTModel, GPTOptions
 
-M = TypeVar("M", Message, Message | MessageStream)
+M = TypeVar("M", Message, MessageStream)
 
 
 class ChatCompletion(Generic[M]):
@@ -104,14 +104,14 @@ class AugmentedGPT:
     @overload
     def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[Message | MessageStream]: ...
+    ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
         context_free: bool = False,
-    ) -> ChatCompletion[Message | MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return self.__backend.chat_completion(
                 messages, stream=True, context_free=context_free

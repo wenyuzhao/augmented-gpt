@@ -230,9 +230,6 @@ class Message:
         if self.content is not None:
             yield self.content
 
-    async def message(self) -> "Message":
-        return self
-
 
 @dataclass
 class ServerError(RuntimeError):
@@ -339,7 +336,7 @@ class ChatMessageStream(MessageStream):
     def __aiter__(self) -> AsyncIterator[str]:
         return self
 
-    async def message(self) -> Message:
+    async def wait_for_completion(self) -> Message:
         if self.__final_message is not None:
             return self.__final_message
         async for _ in self:

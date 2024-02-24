@@ -97,14 +97,14 @@ class ChatGPTBackend:
     @overload
     def chat_completion(
         self, messages: List[Message], stream: Literal[True], context_free: bool = False
-    ) -> ChatCompletion[Message | MessageStream]: ...
+    ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
         context_free: bool = False,
-    ) -> ChatCompletion[Message | MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         raise NotImplementedError
 
     async def _on_new_chat_message(self, msg: Message):
