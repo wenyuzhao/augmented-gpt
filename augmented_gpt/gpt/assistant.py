@@ -39,7 +39,6 @@ class GPTAssistantBackend(LLMBackend):
         super().__init__(
             model, tools, gpt_options, api_key, instructions, name, description, debug
         )
-        self.__instructions = instructions
         self.__assistant = self.__create_or_retrieve_assistant(assistant_id)
         self.__thread = self.__create_or_reuse_thread_sync(thread_id)
 
@@ -72,7 +71,7 @@ class GPTAssistantBackend(LLMBackend):
             ass = client.beta.assistants.create(
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
-                instructions=self.__instructions or NOT_GIVEN,
+                instructions=self.instructions or NOT_GIVEN,
                 tools=tools,
                 model=self.model,
             )
@@ -84,7 +83,7 @@ class GPTAssistantBackend(LLMBackend):
                 id,
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
-                instructions=self.__instructions or NOT_GIVEN,
+                instructions=self.instructions or NOT_GIVEN,
                 tools=tools,
             )
             print("Reuse assistant", ass.id)
