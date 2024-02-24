@@ -64,7 +64,13 @@ class ChatGPTBackend:
         gpt_options: GPTOptions,
         api_key: str,
         prologue: list[Message],
+        name: Optional[str],
+        description: Optional[str],
+        debug: bool,
     ):
+        self.name = name
+        self.description = description
+        self.debug = debug
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
         self.api_key = api_key
@@ -72,11 +78,13 @@ class ChatGPTBackend:
         self.logger = logging.getLogger("AugmentedGPT")
         # self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.tools = tools
-        self.__prologue = prologue or []
-        self.history: list[Message] = [m for m in self.__prologue] or []
+        self._prologue = prologue or []
+
+    def init(self):
+        pass
 
     def reset(self):
-        self.history = [m for m in self.__prologue]
+        pass
 
     @overload
     def chat_completion(

@@ -3,7 +3,7 @@ from inspect import Parameter
 import json
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
-from augmented_gpt.message import JSON, FunctionCall, Message, Role
+from augmented_gpt.message import JSON, FunctionCall, Message, Role, ToolCall
 
 from .plugins import Plugin
 
@@ -127,6 +127,15 @@ class ToolRegistry:
             result = json.dumps(result)
         result_msg.content = result
         return result_msg
+
+    async def call_tools(self, tool_calls: Sequence[ToolCall]) -> list[Message]:
+        results: list[Message] = []
+        for t in tool_calls:
+            assert t.type == "function"
+            result = await self.call_function(t.function, tool_id=t.id)
+            results.append(result)
+            await self.on_new_chat_message(result)
+        return results
 
     async def on_new_chat_message(self, msg: Message):
         for p in self.__plugins.values():

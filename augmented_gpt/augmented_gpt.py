@@ -46,20 +46,40 @@ class AugmentedGPT:
         gpt_options: Optional["GPTOptions"] = None,
         api_key: Optional[str] = None,
         prologue: Optional[List[Message]] = None,
+        api: Literal["chat", "assistant"] = "chat",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
         debug: bool = False,
     ):
         _api_key = api_key or os.environ.get("OPENAI_API_KEY")
         assert _api_key is not None, "Missing OPENAI_API_KEY"
         from .gpt import ChatGPTBackend, GPTOptions
         from .gpt.chat import ChatBackend
+        from .gpt.assistant import AssistantBackend
 
-        self.__backend: ChatGPTBackend = ChatBackend(
-            model=model,
-            tools=ToolRegistry(self, tools),
-            gpt_options=gpt_options or GPTOptions(),
-            api_key=_api_key,
-            prologue=prologue or [],
-        )
+        if api == "chat":
+            self.__backend: ChatGPTBackend = ChatBackend(
+                model=model,
+                tools=ToolRegistry(self, tools),
+                gpt_options=gpt_options or GPTOptions(),
+                api_key=_api_key,
+                prologue=prologue or [],
+                name=name,
+                description=description,
+                debug=debug,
+            )
+        else:
+            self.__backend: ChatGPTBackend = AssistantBackend(
+                model=model,
+                tools=ToolRegistry(self, tools),
+                gpt_options=gpt_options or GPTOptions(),
+                api_key=_api_key,
+                prologue=prologue or [],
+                name=name,
+                description=description,
+                debug=debug,
+            )
+        self.__backend.init()
         self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
 

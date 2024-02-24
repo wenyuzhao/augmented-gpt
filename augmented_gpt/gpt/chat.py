@@ -7,13 +7,33 @@ from typing import (
 )
 
 from augmented_gpt.augmented_gpt import ChatCompletion
-from augmented_gpt.gpt import ChatGPTBackend
+from augmented_gpt.gpt import ChatGPTBackend, GPTModel, GPTOptions
+from augmented_gpt.tools import ToolRegistry
 
 from ..message import *
 from openai.types.chat import ChatCompletionMessageParam
 
 
 class ChatBackend(ChatGPTBackend):
+    def __init__(
+        self,
+        model: GPTModel,
+        tools: ToolRegistry,
+        gpt_options: GPTOptions,
+        api_key: str,
+        prologue: list[Message],
+        name: Optional[str],
+        description: Optional[str],
+        debug: bool,
+    ) -> None:
+        super().__init__(
+            model, tools, gpt_options, api_key, prologue, name, description, debug
+        )
+        self.history: list[Message] = [m for m in self._prologue] or []
+
+    def reset(self):
+        self.history = [m for m in self._prologue]
+
     @overload
     async def __chat_completion_request(
         self, messages: List[Message], stream: Literal[False]
@@ -44,7 +64,7 @@ class ChatBackend(ChatGPTBackend):
                 args["function_call"] = "auto"
         if stream:
             response = await self.client.chat.completions.create(**args, stream=True)
-            return MessageStream(response)
+            return ChatMessageStream(response)
         else:
             response = await self.client.chat.completions.create(**args, stream=False)
             return Message.from_chat_completion_message(response.choices[0].message)
@@ -90,7 +110,7 @@ class ChatBackend(ChatGPTBackend):
                     assert t.type == "function"
                     result = await self.tools.call_function(t.function, tool_id=t.id)
                     history.append(result)
-                    await self._on_new_chat_message(result)
+                    # await self._on_new_chat_message(result)
                     yield result
             else:
                 assert message.function_call is not None
@@ -99,7 +119,7 @@ class ChatBackend(ChatGPTBackend):
                     message.function_call, tool_id=None
                 )
                 history.append(result)
-                await self._on_new_chat_message(result)
+                # await self._on_new_chat_message(result)
                 yield result
             # Send back the function call result
             message: Message

@@ -1,4 +1,5 @@
 from typing import (
+    AsyncIterator,
     Literal,
     Optional,
     TypeAlias,
@@ -239,6 +240,14 @@ class ServerError(RuntimeError):
 
 
 class MessageStream:
+    def __aiter__(self) -> AsyncIterator[str]:
+        raise NotImplementedError()
+
+    async def message(self) -> Message:
+        raise NotImplementedError()
+
+
+class ChatMessageStream(MessageStream):
     def __init__(
         self,
         response: openai.AsyncStream[ChatCompletionChunk],
@@ -327,7 +336,7 @@ class MessageStream:
             if len(delta) > 0:
                 return delta
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[str]:
         return self
 
     async def message(self) -> Message:
