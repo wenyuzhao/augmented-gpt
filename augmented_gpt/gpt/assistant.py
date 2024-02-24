@@ -105,7 +105,7 @@ class GPTAssistantBackend(LLMBackend):
         # # Run the thread
         run = await self.__thread.run()
         async for m in run:
-            msg = Message(role=Role.USER, content=m)
+            msg = Message(role=Role.ASSISTANT, content=m)
             yield msg
 
     @overload
@@ -243,7 +243,7 @@ class Run:
                 case "completed":
                     return
                 case "queued" | "in_progress":
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
                     continue
                 case "cancelled" | "cancelling" | "failed" | "expired":
                     for m in await self.__get_new_messages():
