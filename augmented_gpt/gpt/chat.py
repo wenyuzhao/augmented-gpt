@@ -97,7 +97,7 @@ class ChatBackend(ChatGPTBackend):
         if stream:
             s = await self.__chat_completion_request(history, stream=True)
             yield s
-            message = await s.message()
+            message = await s.wait_for_completion()
         else:
             message = await self.__chat_completion_request(history, stream=False)
             yield message
@@ -125,7 +125,7 @@ class ChatBackend(ChatGPTBackend):
             if stream:
                 r = await self.__chat_completion_request(history, stream=True)
                 yield r
-                message = await r.message()
+                message = await r.wait_for_completion()
             else:
                 message = await self.__chat_completion_request(history, stream=False)
                 yield message

@@ -240,7 +240,7 @@ class MessageStream:
     def __aiter__(self) -> AsyncIterator[str]:
         raise NotImplementedError()
 
-    async def message(self) -> Message:
+    async def wait_for_completion(self) -> Message:
         raise NotImplementedError()
 
 

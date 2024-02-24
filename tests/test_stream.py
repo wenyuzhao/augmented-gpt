@@ -31,13 +31,14 @@ async def test_function_call():
         stream=True,
     )
     all_assistant_content = ""
-    async for msg in response:
+    async for stream in response:
         content = ""
-        async for delta in msg:
+        async for delta in stream:
             assert delta is None or isinstance(delta, str)
             content += delta
             print(" - ", delta)
-        if (await msg.message()).role == Role.ASSISTANT:
+        msg = await stream.wait_for_completion()
+        if msg.role == Role.ASSISTANT:
             all_assistant_content += content
-        print(await msg.message())
+        print(msg)
     assert "72" in all_assistant_content
