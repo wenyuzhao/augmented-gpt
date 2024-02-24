@@ -6,7 +6,6 @@ from typing import (
     Any,
     overload,
 )
-
 from augmented_gpt.augmented_gpt import ChatCompletion
 from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
 from augmented_gpt.tools import ToolRegistry
@@ -34,17 +33,35 @@ class GPTAssistantBackend(LLMBackend):
         name: Optional[str],
         description: Optional[str],
         debug: bool,
+        assistant_id: str | None = None,
+        thread_id: str | None = None,
     ) -> None:
         super().__init__(
             model, tools, gpt_options, api_key, instructions, name, description, debug
         )
         self.__instructions = instructions
-        self.__assistant = self.__create_or_retrieve_assistant(None)
-        self.__thread = self.__create_thread_sync(None)
+        self.__assistant = self.__create_or_retrieve_assistant(assistant_id)
+        self.__thread = self.__create_or_reuse_thread_sync(thread_id)
 
     @property
     def id(self):
         return self.__assistant.id
+
+    def reset(self):
+        # Reset thread
+        self.__thread.reset()
+        # Delete files
+        self.delete_all_files()
+
+    def delete_all_files(self):
+        client = openai.OpenAI(api_key=self.api_key)
+        while True:
+            files = client.beta.assistants.files.list(self.id, limit=100)
+            if len(files.data) == 0:
+                break
+            for f in files.data:
+                client.beta.assistants.files.delete(file_id=f.id, assistant_id=self.id)
+                client.files.delete(file_id=f.id)
 
     def __create_or_retrieve_assistant(self, id: Optional[str]):
         client = openai.OpenAI(api_key=self.api_key)
@@ -52,37 +69,50 @@ class GPTAssistantBackend(LLMBackend):
         for t in self.tools.to_json():
             tools.append(t)
         if id is None:
-            return client.beta.assistants.create(
+            ass = client.beta.assistants.create(
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
                 instructions=self.__instructions or NOT_GIVEN,
                 tools=tools,
                 model=self.model,
             )
+            print("Create assistant", ass.id)
+            return ass
         else:
-            asst = client.beta.assistants.retrieve(id)
-            asst = client.beta.assistants.update(
+            ass = client.beta.assistants.retrieve(id)
+            ass = client.beta.assistants.update(
                 id,
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
                 instructions=self.__instructions or NOT_GIVEN,
                 tools=tools,
             )
-            print(asst.id)
-            return asst
+            print("Reuse assistant", ass.id)
+            return ass
 
-    def __create_thread_sync(self, id: Optional[str]):
+    def __list_threads(self) -> list[str]:
+        return []
+
+    def __create_or_reuse_thread_sync(self, thread_id: str | None) -> "Thread":
         client = openai.OpenAI(api_key=self.api_key)
-        return Thread(self, client.beta.threads.create())
-
-    async def create_thread(self):
-        return Thread(self, await self.client.beta.threads.create())
-
-    async def retrieve_thread(self, thread_id: str):
-        return Thread(self, await self.client.beta.threads.retrieve(thread_id))
-
-    async def delete_thread(self, thread_id: str):
-        await self.client.beta.threads.delete(thread_id)
+        # Reuse a user-provided thread
+        if thread_id is not None:
+            try:
+                t = client.beta.threads.retrieve(thread_id)
+                print("Reuse thread", t.id)
+                return Thread(self, t)
+            except BaseException as e:
+                print(e)
+                pass
+        # If there is already a thread, retrieve and reuse it
+        threads = self.__list_threads()
+        if len(threads) > 0:
+            t = client.beta.threads.retrieve(threads[0])
+            print("Reuse thread", t.id)
+        else:
+            t = client.beta.threads.create()
+            print("Create thread", t.id)
+        return Thread(self, t)
 
     @overload
     async def __chat_completion(
@@ -132,6 +162,9 @@ class GPTAssistantBackend(LLMBackend):
         else:
             return ChatCompletion(self.__chat_completion(messages, stream=False))
 
+    def get_current_thread_id(self) -> Optional[str]:
+        return self.__thread.id
+
 
 class Thread:
     def __init__(self, assistant: GPTAssistantBackend, thread: OpenAIThread):
@@ -142,10 +175,11 @@ class Thread:
     def id(self) -> str:
         return self.__thread.id
 
-    async def reset(self):
-        await self.assistant.delete_thread(self.id)
-        new_thread = await self.assistant.create_thread()
-        self.__thread = new_thread.__thread
+    def reset(self):
+        client = openai.OpenAI(api_key=self.assistant.api_key)
+        client.beta.threads.delete(self.id)
+        new_thread = client.beta.threads.create()
+        self.__thread = new_thread
 
     async def update(self):
         self.__thread = await self.assistant.client.beta.threads.retrieve(self.id)

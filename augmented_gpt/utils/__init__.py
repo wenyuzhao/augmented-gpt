@@ -4,6 +4,6 @@ from typing import TypeVar
 T = TypeVar("T")
 
 
-from . import tts, stt
+from . import tts, stt, assistants
 
-__all__ = ["tts", "stt"]
+__all__ = ["tts", "stt", "assistants"]

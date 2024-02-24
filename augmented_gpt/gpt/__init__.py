@@ -80,11 +80,9 @@ class LLMBackend:
         self.tools = tools
         self.instructions = instructions
 
-    def init(self):
-        pass
-
-    def reset(self):
-        pass
+    def reset(self) -> None:
+        """Clear and reset all history"""
+        raise NotImplementedError()
 
     @overload
     def chat_completion(
@@ -107,3 +105,6 @@ class LLMBackend:
 
     async def _on_new_chat_message(self, msg: Message):
         await self.tools.on_new_chat_message(msg)
+
+    def get_current_thread_id(self) -> Optional[str]:
+        return None

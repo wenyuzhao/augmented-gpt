@@ -49,6 +49,8 @@ class AugmentedGPT:
         api: Literal["chat", "assistant"] = "chat",
         name: Optional[str] = None,
         description: Optional[str] = None,
+        assistant_id: str | None = None,
+        thread_id: str | None = None,
         debug: bool = False,
     ):
         _api_key = api_key or os.environ.get("OPENAI_API_KEY")
@@ -77,9 +79,10 @@ class AugmentedGPT:
                 instructions=instructions,
                 name=name,
                 description=description,
+                assistant_id=assistant_id,
+                thread_id=thread_id,
                 debug=debug,
             )
-        self.__backend.init()
         self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
 
@@ -120,3 +123,6 @@ class AugmentedGPT:
                 messages,
                 stream=False,
             )
+
+    def get_current_thread_id(self) -> Optional[str]:
+        return self.__backend.get_current_thread_id()
