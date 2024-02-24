@@ -111,3 +111,6 @@ class LLMBackend:
 
     def get_current_thread_id(self) -> Optional[str]:
         return None
+
+    def set_model(self, model: "GPTModel"):
+        self.model = model

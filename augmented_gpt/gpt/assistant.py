@@ -168,6 +168,11 @@ class GPTAssistantBackend(LLMBackend):
     def get_current_thread_id(self) -> Optional[str]:
         return self.__thread.id
 
+    def set_model(self, model: "GPTModel"):
+        super().set_model(model)
+        client = openai.OpenAI(api_key=self.api_key)
+        client.beta.assistants.update(assistant_id=self.id, model=self.model)
+
 
 class Thread:
     def __init__(self, assistant: GPTAssistantBackend, thread: OpenAIThread):

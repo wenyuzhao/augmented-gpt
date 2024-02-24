@@ -129,3 +129,6 @@ class AugmentedGPT:
 
     def get_current_thread_id(self) -> Optional[str]:
         return self.__backend.get_current_thread_id()
+
+    def set_model(self, model: "GPTModel"):
+        self.__backend.set_model(model)
