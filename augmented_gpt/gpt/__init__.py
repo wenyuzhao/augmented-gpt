@@ -106,5 +106,8 @@ class LLMBackend:
     async def _on_new_chat_message(self, msg: Message):
         await self.tools.on_new_chat_message(msg)
 
+    def get_current_assistant_id(self) -> Optional[str]:
+        return None
+
     def get_current_thread_id(self) -> Optional[str]:
         return None

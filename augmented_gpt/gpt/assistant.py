@@ -162,6 +162,9 @@ class GPTAssistantBackend(LLMBackend):
         else:
             return ChatCompletion(self.__chat_completion(messages, stream=False))
 
+    def get_current_assistant_id(self) -> Optional[str]:
+        return self.__assistant.id
+
     def get_current_thread_id(self) -> Optional[str]:
         return self.__thread.id
 

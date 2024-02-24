@@ -124,5 +124,8 @@ class AugmentedGPT:
                 stream=False,
             )
 
+    def get_current_assistant_id(self) -> Optional[str]:
+        return self.__backend.get_current_assistant_id()
+
     def get_current_thread_id(self) -> Optional[str]:
         return self.__backend.get_current_thread_id()

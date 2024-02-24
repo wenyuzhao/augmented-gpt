@@ -1,4 +1,4 @@
-from augmented_gpt import AugmentedGPT, Message, Role, param, tool
+from augmented_gpt import AugmentedGPT, Message, Role, param, tool, utils
 from augmented_gpt.plugins import *
 from typing import Optional
 import pytest
@@ -23,7 +23,9 @@ def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[get_current_weather], api="assistant")
+    gpt = AugmentedGPT(
+        model="gpt-3.5-turbo", tools=[get_current_weather], api="assistant"
+    )
     response = gpt.chat_completion(
         [
             Message(role=Role.USER, content="What is the weather like in boston?"),
@@ -36,3 +38,7 @@ async def test_function_call():
             all_assistant_content += msg.content or ""
         print(msg)
     assert "72" in all_assistant_content
+    mgr = utils.assistants.AssistantManager()
+    aid = gpt.get_current_assistant_id()
+    assert aid is not None
+    mgr.delete(aid)
