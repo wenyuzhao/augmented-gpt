@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import (
     AsyncGenerator,
     Literal,
@@ -47,7 +48,7 @@ class GPTAssistantBackend(LLMBackend):
 
     def __create_or_retrieve_assistant(self, id: Optional[str]):
         client = openai.OpenAI(api_key=self.api_key)
-        tools: list[Any] = [{"type": "code_interpreter"}]
+        tools: list[Any] = [{"type": "code_interpreter"}, {"type": "retrieval"}]
         for t in self.tools.to_json():
             tools.append(t)
         if id is None:
@@ -67,7 +68,7 @@ class GPTAssistantBackend(LLMBackend):
                 instructions=self.__instructions or NOT_GIVEN,
                 tools=tools,
             )
-            print(asst)
+            print(asst.id)
             return asst
 
     def __create_thread_sync(self, id: Optional[str]):
@@ -101,7 +102,12 @@ class GPTAssistantBackend(LLMBackend):
         for m in messages:
             await self._on_new_chat_message(m)
             assert isinstance(m.content, str)
-            await self.__thread.add(m.content)
+            files = (
+                [f if isinstance(f, Path) else Path(f) for f in m.files]
+                if m.files is not None
+                else None
+            )
+            await self.__thread.add(m.content, files=files)
         # # Run the thread
         run = await self.__thread.run()
         async for m in run:
@@ -144,18 +150,32 @@ class Thread:
     async def update(self):
         self.__thread = await self.assistant.client.beta.threads.retrieve(self.id)
 
-    async def add(self, content: str) -> str:
+    async def upload_file(self, file: Path) -> str:
+        with open(file, "rb") as f:
+            res = await self.assistant.client.files.create(file=f, purpose="assistants")
+            print(f"Uploaded `{str(file)}` to OpenAI with id {res.id}.")
+            return res.id
+
+    async def add(self, content: str, files: list[Path] | None) -> str:
+        file_ids = (
+            [await self.upload_file(f) for f in files]
+            if files is not None
+            else NOT_GIVEN
+        )
         msg = await self.assistant.client.beta.threads.messages.create(
-            self.__thread.id, content=content, role="user"
+            self.__thread.id,
+            content=content,
+            role="user",
+            file_ids=file_ids,
         )
         return msg.id
 
     async def run(self):
         latest_msg_id: str | None = None
         messages = await self.assistant.client.beta.threads.messages.list(
-            thread_id=self.id
+            thread_id=self.id, order="desc", limit=1
         )
-        async for m in messages:
+        for m in messages.data:
             latest_msg_id = m.id
             break
         run = await self.assistant.client.beta.threads.runs.create(
@@ -164,22 +184,12 @@ class Thread:
         )
         return Run(self, run, latest_msg_id)
 
-    async def send(self, content: str):
-        msg = await self.assistant.client.beta.threads.messages.create(
-            self.__thread.id, content=content, role="user"
-        )
-        run = await self.assistant.client.beta.threads.runs.create(
-            thread_id=self.__thread.id,
-            assistant_id=self.assistant.id,
-        )
-        return Run(self, run, msg.id)
-
 
 class Run:
     def __init__(self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None):
         self.thread = thread
         self.__run = run
-        self.__latest_msg_id = latest_msg_id
+        self.__latest_msg_id: str | None = latest_msg_id
 
     @property
     def id(self):
@@ -215,20 +225,17 @@ class Run:
 
     async def __get_new_messages(self) -> list[str]:
         messages = await self.thread.assistant.client.beta.threads.messages.list(
-            thread_id=self.thread.id
+            thread_id=self.thread.id,
+            after=self.__latest_msg_id or NOT_GIVEN,
+            order="asc",
         )
         new_messages: list[str] = []
-        first_mid = None
-        async for m in messages:
-            if m.id == self.__latest_msg_id:
-                break
+        for m in messages.data:
             for c in m.content:
                 if c.type == "text":
                     new_messages.append(c.text.value)
-            if first_mid is None:
-                first_mid = m.id
-        if first_mid is not None:
-            self.__latest_msg_id = first_mid
+            if len(m.content) > 0:
+                self.__latest_msg_id = m.id
         return new_messages
 
     async def __aiter__(self):
@@ -243,7 +250,7 @@ class Run:
                 case "completed":
                     return
                 case "queued" | "in_progress":
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)
                     continue
                 case "cancelled" | "cancelling" | "failed" | "expired":
                     for m in await self.__get_new_messages():
