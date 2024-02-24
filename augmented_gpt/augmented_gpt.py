@@ -132,3 +132,6 @@ class AugmentedGPT:
 
     def set_model(self, model: "GPTModel"):
         self.__backend.set_model(model)
+
+    def get_model(self) -> "GPTModel":
+        return self.__backend.model
