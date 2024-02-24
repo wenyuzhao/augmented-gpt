@@ -105,12 +105,8 @@ class ChatBackend(ChatGPTBackend):
         await self._on_new_chat_message(message)
         while message.function_call is not None or len(message.tool_calls) > 0:
             if len(message.tool_calls) > 0:
-                for t in message.tool_calls:
-                    assert t.type == "function"
-                    result = await self.tools.call_function(t.function, tool_id=t.id)
-                    history.append(result)
-                    # await self._on_new_chat_message(result)
-                    yield result
+                results = await self.tools.call_tools(message.tool_calls)
+                history.extend(results)
             else:
                 assert message.function_call is not None
                 # ChatGPT wanted to call a user-defined function

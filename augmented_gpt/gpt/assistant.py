@@ -1,7 +1,6 @@
 import asyncio
 from typing import (
     AsyncGenerator,
-    Awaitable,
     Literal,
     Any,
     overload,
@@ -209,16 +208,18 @@ class Run:
         assert self.__run.required_action is not None
         tool_calls = self.__run.required_action.submit_tool_outputs.tool_calls
         print(tool_calls)
-        tasks: list[Awaitable[Message]] = []
-        for t in tool_calls:
-            assert t.type == "function"
-            func = FunctionCall(
-                name=t.function.name, arguments=json.loads(t.function.arguments)
-            )
-            tasks.append(self.thread.assistant.tools.call_function(func, tool_id=t.id))
-        msgs = await asyncio.gather(*tasks)
+        results = await self.thread.assistant.tools.call_tools(
+            [
+                ToolCall(
+                    type="function",
+                    function=FunctionCall.from_openai_func_call(t.function),
+                    id=t.id,
+                )
+                for t in tool_calls
+            ]
+        )
         tool_outputs: list[ToolOutput] = []
-        for m in msgs:
+        for m in results:
             assert isinstance(m, Message)
             assert isinstance(m.content, str)
             assert m.tool_call_id is not None

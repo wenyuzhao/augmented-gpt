@@ -34,6 +34,9 @@ from openai.types.chat.chat_completion_message import FunctionCall as OpenAIFunc
 from openai.types.chat.chat_completion_assistant_message_param import (
     FunctionCall as OpenAIFunctionCallDict,
 )
+from openai.types.beta.threads.required_action_function_tool_call import (
+    Function as OpenAIThreadFunction,
+)
 from openai.types.chat.chat_completion_message_tool_call import (
     Function as OpenAIFunction,
 )
@@ -53,7 +56,9 @@ class FunctionCall:
         return {"name": self.name, "arguments": json.dumps(self.arguments)}
 
     @staticmethod
-    def from_openai_func_call(x: OpenAIFunctionCall | OpenAIFunction) -> "FunctionCall":
+    def from_openai_func_call(
+        x: OpenAIFunctionCall | OpenAIFunction | OpenAIThreadFunction,
+    ) -> "FunctionCall":
         return FunctionCall(
             name=x.name,
             arguments=json.loads(x.arguments),
