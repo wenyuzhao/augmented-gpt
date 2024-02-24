@@ -1,7 +1,6 @@
 from typing import (
     Callable,
     Coroutine,
-    List,
     TypeVar,
     Any,
     Optional,
@@ -16,8 +15,8 @@ class _Param:
     def __init__(
         self,
         description: Optional[str] = None,
-        default: Optional[Any] = None,
-        enum: Optional[List[Any]] = None,
+        default: Optional[str | int] = None,
+        enum: Optional[list[str] | list[int]] = None,
     ):
         self.description = description
         self.default = default
@@ -26,8 +25,8 @@ class _Param:
 
 def param(
     description: Optional[str] = None,
-    default: Optional[Any] = None,
-    enum: Optional[List[Any]] = None,
+    default: Optional[str | int] = None,
+    enum: Optional[list[str] | list[int]] = None,
 ) -> Any:
     return _Param(description, default, enum)
 
@@ -70,6 +69,10 @@ def tool(
                     assert (
                         False
                     ), f"Invalid type annotation for parameter `{pname}` in function {fname}"
+            if param.default.description is not None:
+                prop["description"] = param.default.description
+            if param.default.enum is not None:
+                prop["enum"] = param.default.enum
             if required:
                 params["required"].append(pname)
             else:
