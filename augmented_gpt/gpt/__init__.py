@@ -53,7 +53,7 @@ class GPTOptions:
         return {k: v for k, v in args.items() if v is not None}
 
 
-class ChatGPTBackend:
+class LLMBackend:
     def support_tools(self) -> bool:
         return "vision" not in self.model
 

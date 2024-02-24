@@ -53,12 +53,12 @@ class AugmentedGPT:
     ):
         _api_key = api_key or os.environ.get("OPENAI_API_KEY")
         assert _api_key is not None, "Missing OPENAI_API_KEY"
-        from .gpt import ChatGPTBackend, GPTOptions
-        from .gpt.chat import ChatBackend
-        from .gpt.assistant import AssistantBackend
+        from .gpt import LLMBackend, GPTOptions
+        from .gpt.chat import GPTChatBackend
+        from .gpt.assistant import GPTAssistantBackend
 
         if api == "chat":
-            self.__backend: ChatGPTBackend = ChatBackend(
+            self.__backend: LLMBackend = GPTChatBackend(
                 model=model,
                 tools=ToolRegistry(self, tools),
                 gpt_options=gpt_options or GPTOptions(),
@@ -69,7 +69,7 @@ class AugmentedGPT:
                 debug=debug,
             )
         else:
-            self.__backend: ChatGPTBackend = AssistantBackend(
+            self.__backend: LLMBackend = GPTAssistantBackend(
                 model=model,
                 tools=ToolRegistry(self, tools),
                 gpt_options=gpt_options or GPTOptions(),

@@ -7,7 +7,7 @@ from typing import (
 )
 
 from augmented_gpt.augmented_gpt import ChatCompletion
-from augmented_gpt.gpt import ChatGPTBackend, GPTModel, GPTOptions
+from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
 from augmented_gpt.tools import ToolRegistry
 
 from ..message import *
@@ -20,7 +20,7 @@ from openai.types.beta.threads.run_submit_tool_outputs_params import ToolOutput
 from augmented_gpt.message import FunctionCall, Message
 
 
-class AssistantBackend(ChatGPTBackend):
+class GPTAssistantBackend(LLMBackend):
     __assistant: OpenAIAssistant
 
     def __init__(
@@ -147,7 +147,7 @@ class AssistantBackend(ChatGPTBackend):
 
 
 class Thread:
-    def __init__(self, assistant: AssistantBackend, thread: OpenAIThread):
+    def __init__(self, assistant: GPTAssistantBackend, thread: OpenAIThread):
         self.assistant = assistant
         self.__thread = thread
 

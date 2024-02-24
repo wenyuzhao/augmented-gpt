@@ -6,14 +6,14 @@ from typing import (
 )
 
 from augmented_gpt.augmented_gpt import ChatCompletion
-from augmented_gpt.gpt import ChatGPTBackend, GPTModel, GPTOptions
+from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
 from augmented_gpt.tools import ToolRegistry
 
 from ..message import *
 from openai.types.chat import ChatCompletionMessageParam
 
 
-class ChatBackend(ChatGPTBackend):
+class GPTChatBackend(LLMBackend):
     def __init__(
         self,
         model: GPTModel,
