@@ -17,6 +17,7 @@ pandas = ">= 2.0.0"
 numpy = ">=1.22"
 openai = { version = "1.2.3" }
 scikit-learn = "^1.4.1.post1"
+aiohttp = "^3.9.3"
 
 
 [tool.poetry.group.dev.dependencies]
