@@ -8,6 +8,10 @@ import os
 from openai._types import NOT_GIVEN
 from typing import overload
 import base64
+import requests, uuid, tempfile
+from PIL import Image
+
+TEMP_DIR = tempfile.TemporaryDirectory()
 
 
 @overload
@@ -71,6 +75,23 @@ async def edit(
     size: Literal["256x256", "512x512", "1024x1024"] = "1024x1024",
     api_key: str | None = None,
 ):
+    if isinstance(image, str) and (
+        image.startswith("http://") or image.startswith("https://")
+    ):
+        filename = f"{TEMP_DIR.name}/{uuid.uuid4()}.png"
+        with open(filename, "wb") as f:
+            f.write(requests.get(image).content)
+        Image.open(filename).convert("RGBA").save(filename)
+        image = filename
+    if isinstance(mask, str) and (
+        mask.startswith("http://") or mask.startswith("https://")
+    ):
+        filename = f"{TEMP_DIR.name}/{uuid.uuid4()}.png"
+        with open(filename, "wb") as f:
+            f.write(requests.get(mask).content)
+        Image.open(filename).convert("RGBA").save(filename)
+        mask = filename
+
     client = openai.AsyncOpenAI(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
     with open(image, "rb") as image_file:
         if mask is not None:
