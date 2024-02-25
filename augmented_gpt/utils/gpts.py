@@ -43,7 +43,7 @@ class __GPTsActionServer:
         print(f"[OAuth] Auth redirect_uri={redirect_uri} state={state}")
         verify_access_code_url = f"{self.base_url}/oauth/verify_access_code?redirect_uri={redirect_uri}&state={state}"
         environment = jinja2.Environment()
-        with open(os.path.dirname(__file__) + "/auth.html") as f:
+        with open(os.path.dirname(__file__) + "/gpts-auth.html") as f:
             template = environment.from_string(f.read())
         text = template.render(verify_access_code_url=verify_access_code_url)
         return web.Response(text=text, content_type="text/html")

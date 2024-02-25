@@ -1,3 +1,3 @@
-from . import tts, stt, assistants, gpts
+from . import assistants, gpts, voice, image
 
-__all__ = ["tts", "stt", "assistants", "gpts"]
+__all__ = ["voice", "image", "assistants", "gpts"]
