@@ -2,6 +2,7 @@ import inspect
 from inspect import Parameter
 import json
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+from augmented_gpt import LOGGER, MSG_LOGGER
 
 from augmented_gpt.message import JSON, FunctionCall, Message, Role, ToolCall
 
@@ -26,6 +27,8 @@ class ToolRegistry:
                 self.__add_function(t)
             elif isinstance(t, Plugin):
                 self.__add_plugin(t)
+        names = ", ".join([f"{k}" for k in self.__functions.keys()])
+        LOGGER.debug(f"Registered Tools: {names}")
 
     def __add_function(self, f: Callable[..., Any]):
         func_info = getattr(f, "gpt_function_call_info")
@@ -141,6 +144,17 @@ class ToolRegistry:
     async def call_function_raw(
         self, name: str, args: JSON, tool_id: str | None
     ) -> Any:
+        args_s = ""
+        if isinstance(args, dict):
+            for k, v in args.items():
+                args_s += f"{k}={v}, "
+            args_s = args_s[:-2]
+        else:
+            args_s = str(args)
+        if tool_id is not None:
+            MSG_LOGGER.info(f"GPT-Tool[{tool_id}] {name} {args_s}")
+        else:
+            MSG_LOGGER.info(f"GPT-Function {name} {args_s}")
         # key = func_name if not func_name.startswith("functions.") else func_name[10:]
         if name not in self.__functions:
             return {"error": f"Function or tool `{name}` not found"}
@@ -154,10 +168,15 @@ class ToolRegistry:
                 result = await result_or_coroutine
             else:
                 result = result_or_coroutine
-        except Exception as e:
-            print(e)
+        except BaseException as e:
+            MSG_LOGGER.error(f"Failed to run tool `{name}`: {e}")
             result = {"error": f"Failed to run tool `{name}`: {e}"}
         await self.__on_tool_end(func, tool_id, raw_args, result)
+        result_s = json.dumps(result)
+        if tool_id is not None:
+            MSG_LOGGER.info(f"GPT-Tool[{tool_id}] {name} -> {result_s}")
+        else:
+            MSG_LOGGER.info(f"GPT-Function {name} -> {result_s}")
         return result
 
     async def call_function(

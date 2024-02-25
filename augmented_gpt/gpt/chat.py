@@ -4,6 +4,7 @@ from typing import (
     Any,
     overload,
 )
+from augmented_gpt import MSG_LOGGER
 
 from augmented_gpt.augmented_gpt import ChatCompletion
 from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
@@ -87,6 +88,7 @@ class GPTChatBackend(LLMBackend):
         old_history_length = len(history)
         history.extend(messages)
         for m in messages:
+            MSG_LOGGER.info(f"{m}")
             await self._on_new_chat_message(m)
         # First completion request
         message: Message
@@ -98,6 +100,7 @@ class GPTChatBackend(LLMBackend):
             message = await self.__chat_completion_request(history, stream=False)
             yield message
         history.append(message)
+        MSG_LOGGER.info(f"{message}")
         await self._on_new_chat_message(message)
         # Run tools and submit results until convergence
         while message.function_call is not None or len(message.tool_calls) > 0:
@@ -119,6 +122,7 @@ class GPTChatBackend(LLMBackend):
                 message = await self.__chat_completion_request(history, stream=False)
                 yield message
             history.append(message)
+            MSG_LOGGER.info(f"{message}")
             await self._on_new_chat_message(message)
         for h in history[old_history_length:]:
             self.history.add(h)

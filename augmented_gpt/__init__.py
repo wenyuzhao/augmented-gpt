@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 
-logging.basicConfig(format="[%(levelname)s:%(name)s] %(message)s")
+LOGGER = logging.getLogger("augmented-gpt")
+MSG_LOGGER = LOGGER.getChild("message")
 
 from .decorators import param, tool
 from .message import (
@@ -20,6 +21,7 @@ from . import plugins
 from .augmented_gpt import AugmentedGPT, ChatCompletion, ServerError
 from .gpt import GPTOptions, GPTModel
 from . import utils
+
 
 __all__ = [
     "utils",

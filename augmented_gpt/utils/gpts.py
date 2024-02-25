@@ -1,3 +1,4 @@
+from augmented_gpt import LOGGER
 from augmented_gpt.augmented_gpt import ToolRegistry
 from aiohttp import web
 import asyncio
@@ -29,9 +30,10 @@ class __GPTsActionServer:
         err = await self.verify(request)
         if err is not None:
             return err
-        print("handle_action", request.query, request.match_info)
         tool_name = request.match_info.get("name", None)
+        LOGGER.debug(f"GPTs Action: {tool_name}")
         if tool_name is None:
+            LOGGER.error(f"GPTs Action not found: {tool_name}")
             return web.json_response({"error": "Invalid tool name"}, status=400)
         args = {k: v for k, v in request.rel_url.query.items()}
         res = await self.tools.call_function_raw(name=tool_name, args=args, tool_id="")
@@ -40,7 +42,7 @@ class __GPTsActionServer:
     async def handle_auth(self, request: web.Request):
         redirect_uri: str = request.query["redirect_uri"]
         state: str = request.query["state"]
-        print(f"[OAuth] Auth redirect_uri={redirect_uri} state={state}")
+        LOGGER.debug(f"OAuth: Auth redirect_uri={redirect_uri} state={state}")
         verify_access_code_url = f"{self.base_url}/oauth/verify_access_code?redirect_uri={redirect_uri}&state={state}"
         environment = jinja2.Environment()
         with open(os.path.dirname(__file__) + "/gpts-auth.html") as f:
@@ -53,15 +55,15 @@ class __GPTsActionServer:
         form = await request.post()
         access_code = form["access_code"]
         state = request.query["state"]
-        print(
-            f"[OAuth] Verify-Access-Code redirect_uri={redirect_uri} state={state} access_code={access_code}"
+        LOGGER.debug(
+            f"OAuth: Verify-Access-Code redirect_uri={redirect_uri} state={state} access_code={access_code}"
         )
         if access_code != self.access_code:
-            print("Invalid access code", self.access_code)
+            LOGGER.debug(f"OAuth: Invalid access code {self.access_code}")
             return web.HTTPFound(
                 f"{self.base_url}/oauth/auth?invalid=1&redirect_uri={redirect_uri}&state={state}"
             )
-        print("Valid access code")
+        LOGGER.debug(f"OAuth: Access code verified")
         assert isinstance(access_code, str)
         url: str = redirect_uri + "?state=" + state
         return web.HTTPFound(url)
@@ -72,7 +74,6 @@ class __GPTsActionServer:
         auth = req.headers.get("Authorization", None)
         if auth is None:
             return web.json_response({"error": "No Authorization header"}, status=401)
-        print("auth", auth)
         if not auth.startswith("Bearer "):
             return web.json_response(
                 {"error": "Invalid Authorization header"}, status=401
@@ -83,22 +84,20 @@ class __GPTsActionServer:
         return None
 
     async def handle_token(self, request: web.Request):
-        print("handle_token", request.query, request.match_info)
-        form = await request.post()
-        print(f"[OAuth] Token", form)
         # generate a token
         token = uuid.uuid4().hex
-        print("Generated token", token)
+        LOGGER.debug(f"OAuth: Generated token {token}")
         # save the token
         self.valid_tokens.add(token)
         return web.json_response({"access_token": token})
 
     async def handle(self, request: web.Request):
-        print("Handling request", request.query, request.match_info)
         return web.json_response({"error": "oops"})
 
     async def run(self) -> None:
-        print(f"Starting GPTs frontend on port {self.port}")
+        LOGGER.info(
+            f"Starting GPTs actions server on {self.host}:{self.port}{self.base_url}"
+        )
         app = web.Application()
         app.router.add_get(self.base_url, self.actions_schema)
         app.router.add_get(self.base_url + "/", self.actions_schema)
