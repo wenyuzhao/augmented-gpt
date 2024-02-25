@@ -85,6 +85,8 @@ class AugmentedGPT:
             )
         self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
+        self.name = name
+        self.description = description
 
     def reset(self):
         self.__backend.reset()
@@ -135,3 +137,6 @@ class AugmentedGPT:
 
     def get_model(self) -> "GPTModel":
         return self.__backend.model
+
+    def get_tools(self) -> ToolRegistry:
+        return self.__backend.tools

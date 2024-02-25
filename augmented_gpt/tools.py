@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CH
 from augmented_gpt.message import JSON, FunctionCall, Message, Role, ToolCall
 
 from .plugins import Plugin
+from urllib.parse import urlparse
 
 Tool = Plugin | Callable[..., Any]
 
@@ -44,8 +45,8 @@ class ToolRegistry:
             clsname = p.__class__.__name__
             if clsname.endswith("Plugin"):
                 clsname = clsname[:-6]
-            if not func_info["name"].startswith(clsname + "-"):
-                func_info["name"] = clsname + "-" + func_info["name"]
+            if not func_info["name"].startswith(clsname + "__"):
+                func_info["name"] = clsname + "__" + func_info["name"]
             self.__add_function(method)
         # Add the plugin to the list of plugins
         clsname = p.__class__.__name__
@@ -66,6 +67,43 @@ class ToolRegistry:
         if legacy:
             return functions
         return [{"type": "function", "function": f} for f in functions]
+
+    def to_gpts_json(self, url: str) -> Any:
+        while url.endswith("/"):
+            url = url[:-1]
+        o = urlparse(url)
+        host = o.scheme + "://" + o.netloc
+        base_url = o.path
+        return {
+            "openapi": "3.1.0",
+            "info": {
+                "title": self.__client.name or "",
+                "description": self.__client.description or "",
+                "version": "v1.0.0",
+            },
+            "servers": [{"url": host}],
+            "paths": {
+                f"{base_url}/actions/{x['name']}": {
+                    "get": {
+                        "description": x["description"],
+                        "operationId": x["name"],
+                        "parameters": [
+                            {
+                                "name": name,
+                                "in": "query",
+                                "description": p["description"],
+                                "required": name in x["parameters"]["required"],
+                                "schema": {"type": p["type"]},
+                            }
+                            for name, p in x["parameters"]["properties"].items()
+                        ],
+                        "deprecated": False,
+                    }
+                }
+                for (x, _) in self.__functions.values()
+            },
+            "components": {"schemas": {}},
+        }
 
     def __filter_args(self, callable: Callable[..., Any], args: Any):
         p_args: List[Any] = []
@@ -100,19 +138,15 @@ class ToolRegistry:
         if self.__client.on_tool_end is not None and tool_id is not None:
             await self.__client.on_tool_end(tool_id, display_name, args, result)
 
-    async def call_function(
-        self, function_call: FunctionCall, tool_id: Optional[str]
-    ) -> Message:
-        func_name = function_call.name
-        key = func_name if not func_name.startswith("functions.") else func_name[10:]
-        if tool_id is not None:
-            result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content="")
-        else:
-            result_msg = Message(role=Role.FUNCTION, name=func_name, content="")
-        func = self.__functions[key][1]
-        arguments = function_call.arguments
-        args, kw_args = self.__filter_args(func, arguments)
-        await self.__on_tool_start(func, tool_id, arguments)
+    async def call_function_raw(
+        self, name: str, args: JSON, tool_id: str | None
+    ) -> Any:
+        # key = func_name if not func_name.startswith("functions.") else func_name[10:]
+        if name not in self.__functions:
+            return {"error": f"Function or tool `{name}` not found"}
+        func = self.__functions[name][1]
+        args, kw_args = self.__filter_args(func, args)
+        await self.__on_tool_start(func, tool_id, args)
         try:
             result_or_coroutine = func(*args, **kw_args)
             if inspect.iscoroutine(result_or_coroutine):
@@ -121,11 +155,22 @@ class ToolRegistry:
                 result = result_or_coroutine
         except Exception as e:
             print(e)
-            result = {"error": f"Failed to run tool `{func_name}`: {e}"}
-        await self.__on_tool_end(func, tool_id, arguments, result)
+            result = {"error": f"Failed to run tool `{name}`: {e}"}
+        await self.__on_tool_end(func, tool_id, args, result)
+        return result
+
+    async def call_function(
+        self, function_call: FunctionCall, tool_id: Optional[str]
+    ) -> Message:
+        func_name = function_call.name
+        arguments = function_call.arguments
+        result = await self.call_function_raw(func_name, arguments, tool_id)
         if not isinstance(result, str):
             result = json.dumps(result)
-        result_msg.content = result
+        if tool_id is not None:
+            result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content=result)
+        else:
+            result_msg = Message(role=Role.FUNCTION, name=func_name, content=result)
         return result_msg
 
     async def call_tools(self, tool_calls: Sequence[ToolCall]) -> list[Message]:

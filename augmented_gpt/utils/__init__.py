@@ -1,9 +1,3 @@
-from typing import TypeVar
+from . import tts, stt, assistants, gpts
 
-
-T = TypeVar("T")
-
-
-from . import tts, stt, assistants
-
-__all__ = ["tts", "stt", "assistants"]
+__all__ = ["tts", "stt", "assistants", "gpts"]
