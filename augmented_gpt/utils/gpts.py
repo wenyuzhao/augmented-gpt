@@ -86,6 +86,7 @@ class __GPTsActionServer:
             )
         token = auth.split(" ")[1]
         if token not in self.valid_tokens:
+            LOGGER.debug(f"OAuth: Invalid token {token}")
             return web.json_response({"error": "Invalid token"}, status=401)
         return None
 
