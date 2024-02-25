@@ -75,10 +75,6 @@ def tool(
                 prop["enum"] = param.default.enum
             if required:
                 params["required"].append(pname)
-            else:
-                assert (
-                    param.default.default is not None
-                ), f"Optional parameter `{pname}` in function {fname} requires a default value"
             params["properties"][pname] = prop
         # store gpt function metadata to the callable object
         setattr(
