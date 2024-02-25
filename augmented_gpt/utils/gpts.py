@@ -5,6 +5,7 @@ import asyncio
 from urllib.parse import urlparse
 import uuid, jinja2
 import os.path
+import json
 
 
 class __GPTsActionServer:
@@ -15,13 +16,18 @@ class __GPTsActionServer:
         port: int,
         base_url: str,
         access_code: str | None,
+        token_storage: str | None,
     ):
         self.host = host
         self.base_url = base_url
         self.port = port
         self.tools = tools
         self.access_code = access_code
+        self.token_storage = token_storage
         self.valid_tokens: set[str] = set()
+        if token_storage is not None and os.path.exists(token_storage):
+            with open(token_storage, "r") as f:
+                self.valid_tokens = set(json.load(f))
 
     async def actions_schema(self, request: web.Request):
         return web.json_response(self.tools.to_gpts_json(self.host + self.base_url))
@@ -88,6 +94,16 @@ class __GPTsActionServer:
         token = uuid.uuid4().hex
         LOGGER.debug(f"OAuth: Generated token {token}")
         # save the token
+        if self.token_storage is not None:
+            if not os.path.exists(self.token_storage):
+                with open(self.token_storage, "w") as f:
+                    json.dump([token], f)
+            else:
+                with open(self.token_storage, "r") as f:
+                    tokens = json.load(f)
+                tokens.append(token)
+                with open(self.token_storage, "w") as f:
+                    json.dump(tokens, f)
         self.valid_tokens.add(token)
         return web.json_response({"access_token": token})
 
@@ -113,7 +129,11 @@ class __GPTsActionServer:
 
 
 async def start_gpts_action_server(
-    tools: ToolRegistry, url: str, port: int = 6001, access_code: str | None = None
+    tools: ToolRegistry,
+    url: str,
+    port: int = 6001,
+    access_code: str | None = None,
+    token_storage: str | None = None,
 ):
     while url.endswith("/"):
         url = url[:-1]
@@ -121,6 +141,11 @@ async def start_gpts_action_server(
     host = o.scheme + "://" + o.netloc
     base_url = o.path
     server = __GPTsActionServer(
-        tools, host=host, base_url=base_url, port=port, access_code=access_code
+        tools,
+        host=host,
+        base_url=base_url,
+        port=port,
+        access_code=access_code,
+        token_storage=token_storage,
     )
     await server.run()
