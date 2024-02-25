@@ -7,7 +7,6 @@ from augmented_gpt import LOGGER, MSG_LOGGER
 from augmented_gpt.message import JSON, FunctionCall, Message, Role, ToolCall
 
 from .plugins import Plugin
-from urllib.parse import urlparse
 
 Tool = Plugin | Callable[..., Any]
 
@@ -74,9 +73,6 @@ class ToolRegistry:
     def to_gpts_json(self, url: str) -> Any:
         while url.endswith("/"):
             url = url[:-1]
-        o = urlparse(url)
-        host = o.scheme + "://" + o.netloc
-        base_url = o.path
         return {
             "openapi": "3.1.0",
             "info": {
@@ -84,9 +80,9 @@ class ToolRegistry:
                 "description": self.__client.description or "",
                 "version": "v1.0.0",
             },
-            "servers": [{"url": host}],
+            "servers": [{"url": url}],
             "paths": {
-                f"{base_url}/actions/{x['name']}": {
+                f"/actions/{x['name']}": {
                     "get": {
                         "description": x["description"],
                         "operationId": x["name"],
