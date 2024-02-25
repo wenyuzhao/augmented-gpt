@@ -145,8 +145,9 @@ class ToolRegistry:
         if name not in self.__functions:
             return {"error": f"Function or tool `{name}` not found"}
         func = self.__functions[name][1]
+        raw_args = args
         args, kw_args = self.__filter_args(func, args)
-        await self.__on_tool_start(func, tool_id, args)
+        await self.__on_tool_start(func, tool_id, raw_args)
         try:
             result_or_coroutine = func(*args, **kw_args)
             if inspect.iscoroutine(result_or_coroutine):
@@ -156,7 +157,7 @@ class ToolRegistry:
         except Exception as e:
             print(e)
             result = {"error": f"Failed to run tool `{name}`: {e}"}
-        await self.__on_tool_end(func, tool_id, args, result)
+        await self.__on_tool_end(func, tool_id, raw_args, result)
         return result
 
     async def call_function(

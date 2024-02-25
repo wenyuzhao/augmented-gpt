@@ -116,10 +116,8 @@ class __GPTsActionServer:
 async def start_gpts_action_server(
     tools: ToolRegistry, url: str, port: int = 6001, access_code: str | None = None
 ):
-    print("Starting GPTs action server")
     while url.endswith("/"):
         url = url[:-1]
-    print("Starting GPTs action server 1")
     o = urlparse(url)
     host = o.scheme + "://" + o.netloc
     base_url = o.path
