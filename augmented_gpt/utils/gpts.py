@@ -1,3 +1,4 @@
+from pathlib import Path
 from augmented_gpt import LOGGER
 from augmented_gpt.augmented_gpt import ToolRegistry
 from aiohttp import web
@@ -16,7 +17,7 @@ class __GPTsActionServer:
         port: int,
         base_url: str,
         access_code: str | None,
-        token_storage: str | None,
+        token_storage: Path | str | None,
     ):
         self.host = host
         self.base_url = base_url
@@ -134,7 +135,7 @@ async def start_gpts_action_server(
     url: str,
     port: int = 6001,
     access_code: str | None = None,
-    token_storage: str | None = None,
+    token_storage: Path | str | None = None,
 ):
     while url.endswith("/"):
         url = url[:-1]
