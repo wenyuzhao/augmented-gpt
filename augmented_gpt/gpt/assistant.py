@@ -50,8 +50,6 @@ class GPTAssistantBackend(LLMBackend):
     def reset(self):
         # Reset thread
         self.__thread.reset()
-        # Delete files
-        self.delete_all_files()
 
     def delete_all_files(self):
         client = openai.OpenAI(api_key=self.api_key)
