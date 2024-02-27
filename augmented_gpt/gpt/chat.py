@@ -98,7 +98,8 @@ class GPTChatBackend(LLMBackend):
             message = await s.wait_for_completion()
         else:
             message = await self.__chat_completion_request(history, stream=False)
-            yield message
+            if message.content is not None:
+                yield message
         history.append(message)
         MSG_LOGGER.info(f"{message}")
         await self._on_new_chat_message(message)
@@ -120,7 +121,8 @@ class GPTChatBackend(LLMBackend):
                 message = await r.wait_for_completion()
             else:
                 message = await self.__chat_completion_request(history, stream=False)
-                yield message
+                if message.content is not None:
+                    yield message
             history.append(message)
             MSG_LOGGER.info(f"{message}")
             await self._on_new_chat_message(message)
