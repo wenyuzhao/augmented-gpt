@@ -71,7 +71,10 @@ class GPTChatBackend(LLMBackend):
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> AsyncGenerator[Message, None]: ...
 
     @overload
@@ -148,9 +151,13 @@ class GPTChatBackend(LLMBackend):
         self, messages: list[Message], stream: bool = False, context: Any = None
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(self.__chat_completion(messages, stream=True))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=True, context=context)
+            )
         else:
-            return ChatCompletion(self.__chat_completion(messages, stream=False))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=False, context=context)
+            )
 
 
 class History:

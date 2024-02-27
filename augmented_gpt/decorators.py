@@ -54,9 +54,11 @@ def tool(
         for pname, param in inspect.signature(callable).parameters.items():
             if pname == "self":
                 continue
-            assert isinstance(
-                param.default, _Param
+            assert (
+                isinstance(param.default, _Param) or param.name == "__context__"
             ), f"Invalid default value for parameter `{pname}` in function {fname}"
+            if not isinstance(param.default, _Param):
+                continue
             prop, required = {}, True
             match param.annotation:
                 case x if x == str or x == Optional[str]:
