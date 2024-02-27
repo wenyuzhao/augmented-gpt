@@ -86,17 +86,19 @@ class LLMBackend:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: List[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
+        context: Any = None,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         raise NotImplementedError
 

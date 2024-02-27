@@ -114,16 +114,19 @@ class GPTAssistantBackend(LLMBackend):
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(  # type: ignore
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ):
         assert not stream
         # Add messages
@@ -138,7 +141,7 @@ class GPTAssistantBackend(LLMBackend):
             MSG_LOGGER.info(f"{m}")
             await self.__thread.add(m.content, files=files)
         # Run the thread
-        run = await self.__thread.run()
+        run = await self.__thread.run(context=context)
         async for m in run:
             msg = Message(role=Role.ASSISTANT, content=m)
             MSG_LOGGER.info(f"{msg}")
@@ -146,21 +149,28 @@ class GPTAssistantBackend(LLMBackend):
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(self.__chat_completion(messages, stream=True))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=True, context=context)
+            )
         else:
-            return ChatCompletion(self.__chat_completion(messages, stream=False))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=False, context=context)
+            )
 
     def get_current_assistant_id(self) -> Optional[str]:
         return self.__assistant.id
@@ -212,7 +222,7 @@ class Thread:
         )
         return msg.id
 
-    async def run(self):
+    async def run(self, context: Any = None):
         latest_msg_id: str | None = None
         messages = await self.assistant.client.beta.threads.messages.list(
             thread_id=self.id, order="desc", limit=1
@@ -224,14 +234,17 @@ class Thread:
             thread_id=self.__thread.id,
             assistant_id=self.assistant.id,
         )
-        return Run(self, run, latest_msg_id)
+        return Run(self, run, latest_msg_id, context=context)
 
 
 class Run:
-    def __init__(self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None):
+    def __init__(
+        self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None, context: Any
+    ):
         self.thread = thread
         self.__run = run
         self.__latest_msg_id: str | None = latest_msg_id
+        self.__context = context
 
     @property
     def id(self):
@@ -248,7 +261,8 @@ class Run:
                     id=t.id,
                 )
                 for t in tool_calls
-            ]
+            ],
+            context=self.__context,
         )
         tool_outputs: list[ToolOutput] = []
         for m in results:

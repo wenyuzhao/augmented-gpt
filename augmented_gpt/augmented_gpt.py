@@ -103,6 +103,7 @@ class AugmentedGPT:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
@@ -114,16 +115,19 @@ class AugmentedGPT:
         self,
         messages: list[Message],
         stream: bool = False,
+        context: Any = None,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return self.__backend.chat_completion(
                 messages,
                 stream=True,
+                context=context,
             )
         else:
             return self.__backend.chat_completion(
                 messages,
                 stream=False,
+                context=context,
             )
 
     def get_current_assistant_id(self) -> Optional[str]:

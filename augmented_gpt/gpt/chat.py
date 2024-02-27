@@ -76,13 +76,11 @@ class GPTChatBackend(LLMBackend):
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(
-        self,
-        messages: list[Message],
-        stream: bool = False,
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ):
         history = [h for h in self.history.get()]
         old_history_length = len(history)
@@ -107,11 +105,15 @@ class GPTChatBackend(LLMBackend):
         while message.function_call is not None or len(message.tool_calls) > 0:
             # Run tools
             if len(message.tool_calls) > 0:
-                results = await self.tools.call_tools(message.tool_calls)
+                results = await self.tools.call_tools(
+                    message.tool_calls, context=context
+                )
                 history.extend(results)
             else:
                 assert message.function_call is not None
-                r = await self.tools.call_function(message.function_call, tool_id=None)
+                r = await self.tools.call_function(
+                    message.function_call, tool_id=None, context=context
+                )
                 history.append(r)
             # Submit results
             message: Message
@@ -131,16 +133,19 @@ class GPTChatBackend(LLMBackend):
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return ChatCompletion(self.__chat_completion(messages, stream=True))

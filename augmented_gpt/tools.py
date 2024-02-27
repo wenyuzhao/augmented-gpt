@@ -104,7 +104,7 @@ class ToolRegistry:
             "components": {"schemas": {}},
         }
 
-    def __filter_args(self, callable: Callable[..., Any], args: Any):
+    def __filter_args(self, callable: Callable[..., Any], args: Any, context: Any):
         p_args: List[Any] = []
         kw_args: Dict[str, Any] = {}
         for p in inspect.signature(callable).parameters.values():
@@ -112,9 +112,12 @@ class ToolRegistry:
                 case Parameter.POSITIONAL_ONLY:
                     p_args.append(args[p.name] if p.name in args else p.default.default)
                 case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY:
-                    kw_args[p.name] = (
-                        args[p.name] if p.name in args else p.default.default
-                    )
+                    if p.name == "__context__" and p.name not in args:
+                        kw_args[p.name] = context
+                    else:
+                        kw_args[p.name] = (
+                            args[p.name] if p.name in args else p.default.default
+                        )
                 case other:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
@@ -138,7 +141,7 @@ class ToolRegistry:
             await self.__client.on_tool_end(tool_id, display_name, args, result)
 
     async def call_function_raw(
-        self, name: str, args: JSON, tool_id: str | None
+        self, name: str, args: JSON, tool_id: str | None, context: Any = None
     ) -> Any:
         args_s = ""
         if isinstance(args, dict):
@@ -156,7 +159,7 @@ class ToolRegistry:
             return {"error": f"Function or tool `{name}` not found"}
         func = self.__functions[name][1]
         raw_args = args
-        args, kw_args = self.__filter_args(func, args)
+        args, kw_args = self.__filter_args(func, args, context)
         await self.__on_tool_start(func, tool_id, raw_args)
         try:
             result_or_coroutine = func(*args, **kw_args)
@@ -176,11 +179,13 @@ class ToolRegistry:
         return result
 
     async def call_function(
-        self, function_call: FunctionCall, tool_id: Optional[str]
+        self, function_call: FunctionCall, tool_id: Optional[str], context: Any
     ) -> Message:
         func_name = function_call.name
         arguments = function_call.arguments
-        result = await self.call_function_raw(func_name, arguments, tool_id)
+        result = await self.call_function_raw(
+            func_name, arguments, tool_id, context=context
+        )
         if not isinstance(result, str):
             result = json.dumps(result)
         if tool_id is not None:
@@ -189,11 +194,13 @@ class ToolRegistry:
             result_msg = Message(role=Role.FUNCTION, name=func_name, content=result)
         return result_msg
 
-    async def call_tools(self, tool_calls: Sequence[ToolCall]) -> list[Message]:
+    async def call_tools(
+        self, tool_calls: Sequence[ToolCall], context: Any
+    ) -> list[Message]:
         results: list[Message] = []
         for t in tool_calls:
             assert t.type == "function"
-            result = await self.call_function(t.function, tool_id=t.id)
+            result = await self.call_function(t.function, tool_id=t.id, context=context)
             results.append(result)
             await self.on_new_chat_message(result)
         return results
