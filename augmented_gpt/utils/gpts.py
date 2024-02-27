@@ -9,18 +9,20 @@ import os.path
 import json
 
 
-class __GPTsActionServer:
+class GPTsActionServer:
     def __init__(
         self,
         tools: ToolRegistry,
-        host: str,
+        url: str,
         port: int,
-        base_url: str,
         access_code: str | None,
         token_storage: Path | str | None,
     ):
-        self.host = host
-        self.base_url = base_url
+        while url.endswith("/"):
+            url = url[:-1]
+        o = urlparse(url)
+        self.host = o.scheme + "://" + o.netloc
+        self.base_url = o.path
         self.port = port
         self.tools = tools
         self.access_code = access_code
@@ -112,19 +114,25 @@ class __GPTsActionServer:
     async def handle(self, request: web.Request):
         return web.json_response({"error": "oops"})
 
+    def get_routes(self):
+        return [
+            web.get(self.base_url, self.actions_schema),
+            web.get(self.base_url + "/", self.actions_schema),
+            web.get(self.base_url + "/actions/{name}", self.handle_action),
+            web.get(self.base_url + "/oauth/auth", self.handle_auth),
+            web.post(self.base_url + "/oauth/token", self.handle_token),
+            web.post(
+                self.base_url + "/oauth/verify_access_code",
+                self.handle_verify_access_code,
+            ),
+        ]
+
     async def run(self) -> None:
         LOGGER.info(
             f"Starting GPTs actions server on {self.host}:{self.port}{self.base_url}"
         )
         app = web.Application()
-        app.router.add_get(self.base_url, self.actions_schema)
-        app.router.add_get(self.base_url + "/", self.actions_schema)
-        app.router.add_get(self.base_url + "/actions/{name}", self.handle_action)
-        app.router.add_get(self.base_url + "/oauth/auth", self.handle_auth)
-        app.router.add_post(self.base_url + "/oauth/token", self.handle_token)
-        app.router.add_post(
-            self.base_url + "/oauth/verify_access_code", self.handle_verify_access_code
-        )
+        app.add_routes(self.get_routes())
         handler = app.make_handler()
         loop = asyncio.get_event_loop()
         await loop.create_server(handler, "0.0.0.0", self.port)
@@ -137,15 +145,9 @@ async def start_gpts_action_server(
     access_code: str | None = None,
     token_storage: Path | str | None = None,
 ):
-    while url.endswith("/"):
-        url = url[:-1]
-    o = urlparse(url)
-    host = o.scheme + "://" + o.netloc
-    base_url = o.path
-    server = __GPTsActionServer(
+    server = GPTsActionServer(
         tools,
-        host=host,
-        base_url=base_url,
+        url=url,
         port=port,
         access_code=access_code,
         token_storage=token_storage,
