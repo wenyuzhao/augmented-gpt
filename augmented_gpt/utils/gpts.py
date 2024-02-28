@@ -2,7 +2,6 @@ from pathlib import Path
 from augmented_gpt import LOGGER
 from augmented_gpt.augmented_gpt import ToolRegistry
 from aiohttp import web
-import asyncio
 from urllib.parse import urlparse
 import uuid, jinja2
 import os.path
@@ -17,6 +16,7 @@ class GPTsActionServer:
         port: int,
         access_code: str | None,
         token_storage: Path | str | None,
+        app: web.Application | None = None,
     ):
         while url.endswith("/"):
             url = url[:-1]
@@ -31,6 +31,8 @@ class GPTsActionServer:
         if token_storage is not None and os.path.exists(token_storage):
             with open(token_storage, "r") as f:
                 self.valid_tokens = set(json.load(f))
+        self.app = app or web.Application()
+        self.__register_routes()
 
     async def actions_schema(self, request: web.Request):
         return web.json_response(self.tools.to_gpts_json(self.host + self.base_url))
@@ -114,28 +116,26 @@ class GPTsActionServer:
     async def handle(self, request: web.Request):
         return web.json_response({"error": "oops"})
 
-    def get_routes(self):
-        return [
-            web.get(self.base_url, self.actions_schema),
-            web.get(self.base_url + "/", self.actions_schema),
-            web.get(self.base_url + "/actions/{name}", self.handle_action),
-            web.get(self.base_url + "/oauth/auth", self.handle_auth),
-            web.post(self.base_url + "/oauth/token", self.handle_token),
-            web.post(
-                self.base_url + "/oauth/verify_access_code",
-                self.handle_verify_access_code,
-            ),
-        ]
+    def __register_routes(self):
+        self.app.add_routes(
+            [
+                web.get("", self.actions_schema),
+                web.get("/", self.actions_schema),
+                web.get("/actions/{name}", self.handle_action),
+                web.get("/oauth/auth", self.handle_auth),
+                web.post("/oauth/token", self.handle_token),
+                web.post("/oauth/verify_access_code", self.handle_verify_access_code),
+            ]
+        )
 
     async def run(self) -> None:
         LOGGER.info(
             f"Starting GPTs actions server on {self.host}:{self.port}{self.base_url}"
         )
-        app = web.Application()
-        app.add_routes(self.get_routes())
-        handler = app.make_handler()
-        loop = asyncio.get_event_loop()
-        await loop.create_server(handler, "0.0.0.0", self.port)
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, "localhost", 3000)
+        await site.start()
 
 
 async def start_gpts_action_server(
