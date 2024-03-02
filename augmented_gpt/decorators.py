@@ -79,15 +79,17 @@ def tool(
                 params["required"].append(pname)
             params["properties"][pname] = prop
         # store gpt function metadata to the callable object
+        from augmented_gpt.tools import ToolInfo, TOOL_INFO_TAG
+
         setattr(
             callable,
-            "gpt_function_call_info",
-            {
-                "name": fname,
-                "display_name": display_name or fname,
-                "description": callable.__doc__ or "",
-                "parameters": params,
-            },
+            TOOL_INFO_TAG,
+            ToolInfo(
+                name=fname,
+                display_name=display_name or fname,
+                description=callable.__doc__ or "",
+                parameters=params,
+            ),
         )
         return callable
 

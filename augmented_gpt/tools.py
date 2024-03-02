@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import inspect
 from inspect import Parameter
 import json
@@ -15,6 +16,37 @@ Tools = Sequence[Tool]
 if TYPE_CHECKING:
     from .augmented_gpt import AugmentedGPT
 
+TOOL_INFO_TAG = "gpt_function_call_info"
+
+
+@dataclass
+class ToolInfo:
+    name: str
+    display_name: str
+    description: str
+    parameters: dict[str, Any]
+
+    @staticmethod
+    def from_fn_opt(f: Callable[..., Any]) -> Optional["ToolInfo"]:
+        if not hasattr(f, TOOL_INFO_TAG):
+            return None
+        info = getattr(f, TOOL_INFO_TAG)
+        assert isinstance(info, ToolInfo) or info is None
+        return info
+
+    @staticmethod
+    def from_fn(f: Callable[..., Any]) -> "ToolInfo":
+        info = ToolInfo.from_fn_opt(f)
+        assert info is not None
+        return info
+
+    def to_json(self) -> JSON:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.parameters,
+        }
+
 
 class ToolRegistry:
     def __init__(self, client: "AugmentedGPT", tools: Tools | None = None) -> None:
@@ -30,25 +62,20 @@ class ToolRegistry:
         LOGGER.debug(f"Registered Tools: {names}")
 
     def __add_function(self, f: Callable[..., Any]):
-        func_info = getattr(f, "gpt_function_call_info")
-        func_info = {
-            "name": func_info["name"],
-            "description": func_info["description"],
-            "parameters": func_info["parameters"],
-        }
-        self.__functions[func_info["name"]] = (func_info, f)
+        func_info = ToolInfo.from_fn(f)
+        self.__functions[func_info.name] = (func_info.to_json(), f)
 
     def __add_plugin(self, p: Plugin):
         # Add all functions from the plugin
         for _n, method in inspect.getmembers(p, predicate=inspect.ismethod):
-            if not hasattr(method, "gpt_function_call_info"):
+            func_info = ToolInfo.from_fn_opt(method)
+            if func_info is None:
                 continue
-            func_info = getattr(method, "gpt_function_call_info")
             clsname = p.__class__.__name__
             if clsname.endswith("Plugin"):
                 clsname = clsname[:-6]
-            if not func_info["name"].startswith(clsname + "__"):
-                func_info["name"] = clsname + "__" + func_info["name"]
+            if not func_info.name.startswith(clsname + "__"):
+                func_info.name = clsname + "__" + func_info.name
             self.__add_function(method)
         # Add the plugin to the list of plugins
         clsname = p.__class__.__name__
@@ -125,9 +152,9 @@ class ToolRegistry:
     async def __on_tool_start(
         self, func: Callable[..., Any], tool_id: str | None, args: JSON
     ):
-        display_name = getattr(func, "gpt_function_call_info")["display_name"]
+        info = ToolInfo.from_fn(func)
         if self.__client.on_tool_start is not None and tool_id is not None:
-            await self.__client.on_tool_start(tool_id, display_name, args)
+            await self.__client.on_tool_start(tool_id, info, args)
 
     async def __on_tool_end(
         self,
@@ -136,9 +163,9 @@ class ToolRegistry:
         args: JSON,
         result: JSON,
     ):
-        display_name = getattr(func, "gpt_function_call_info")["display_name"]
+        info = ToolInfo.from_fn(func)
         if self.__client.on_tool_end is not None and tool_id is not None:
-            await self.__client.on_tool_end(tool_id, display_name, args, result)
+            await self.__client.on_tool_end(tool_id, info, args, result)
 
     async def call_function_raw(
         self, name: str, args: JSON, tool_id: str | None, context: Any = None

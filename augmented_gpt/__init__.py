@@ -21,6 +21,7 @@ from . import plugins
 from .augmented_gpt import AugmentedGPT, ChatCompletion, ServerError
 from .gpt import GPTOptions, GPTModel
 from . import utils
+from .tools import ToolInfo, ToolRegistry, Tools
 
 
 __all__ = [
@@ -42,4 +43,7 @@ __all__ = [
     "ContentPart",
     "ContentPartImage",
     "ContentPartText",
+    "ToolInfo",
+    "ToolRegistry",
+    "Tools",
 ]

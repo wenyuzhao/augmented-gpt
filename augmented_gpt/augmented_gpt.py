@@ -11,7 +11,7 @@ from typing import (
 )
 
 from .message import *
-from .tools import ToolRegistry, Tools
+from .tools import ToolInfo, ToolRegistry, Tools
 import os
 
 from typing import TYPE_CHECKING
@@ -83,8 +83,8 @@ class AugmentedGPT:
                 thread_id=thread_id,
                 debug=debug,
             )
-        self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
-        self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
+        self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
+        self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
         self.name = name
         self.description = description
 
