@@ -41,7 +41,7 @@ class AugmentedGPT:
 
     def __init__(
         self,
-        model: "GPTModel" = "gpt-4-1106-preview",
+        model: "GPTModel" = "gpt-4-turbo",
         tools: Optional[Tools] = None,
         gpt_options: Optional["GPTOptions"] = None,
         api_key: Optional[str] = None,

@@ -27,10 +27,11 @@ class TextToSpeech:
         voice: Optional[Voice] = None,
     ):
         _voice: Voice = voice or self.voice
-        response = await self.client.audio.speech.create(
+        response = self.client.audio.speech.with_streaming_response.create(
             model=self.model, voice=_voice, input=text
         )
-        response.stream_to_file(output)
+        async with response as r:
+            await r.stream_to_file(output)
 
 
 __all__ = ["TextToSpeech", "Voice"]

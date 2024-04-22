@@ -51,21 +51,21 @@ class GPTAssistantBackend(LLMBackend):
         # Reset thread
         self.__thread.reset()
         # Delete files
-        self.delete_all_files()
+        # self.delete_all_files()
 
-    def delete_all_files(self):
-        client = openai.OpenAI(api_key=self.api_key)
-        while True:
-            files = client.beta.assistants.files.list(self.id, limit=100)
-            if len(files.data) == 0:
-                break
-            for f in files.data:
-                client.beta.assistants.files.delete(file_id=f.id, assistant_id=self.id)
-                client.files.delete(file_id=f.id)
+    # def delete_all_files(self):
+    #     client = openai.OpenAI(api_key=self.api_key)
+    #     while True:
+    #         files = client.beta.assistants.files.list(self.id, limit=100)
+    #         if len(files.data) == 0:
+    #             break
+    #         for f in files.data:
+    #             client.beta.assistants.files.delete(file_id=f.id, assistant_id=self.id)
+    #             client.files.delete(file_id=f.id)
 
     def __create_or_retrieve_assistant(self, id: Optional[str]):
         client = openai.OpenAI(api_key=self.api_key)
-        tools: list[Any] = [{"type": "code_interpreter"}, {"type": "retrieval"}]
+        tools: list[Any] = [{"type": "code_interpreter"}, {"type": "file_search"}]
         for t in self.tools.to_json():
             tools.append(t)
         if id is None:
@@ -208,7 +208,7 @@ class Thread:
             self.__thread.id,
             content=content,
             role="user",
-            file_ids=file_ids,
+            attachments=[{"file_id": fid, "add_to": ["file_search"]} for fid in file_ids or []],
         )
         return msg.id
 
