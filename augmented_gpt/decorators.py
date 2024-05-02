@@ -70,6 +70,8 @@ def tool(
                     assert (
                         False
                     ), f"Invalid type annotation for parameter `{pname}` in function {fname}"
+            if param.default.description is not None:
+                prop["description"] = param.default.description
             if required:
                 params["required"].append(pname)
             else:
