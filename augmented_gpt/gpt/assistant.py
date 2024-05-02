@@ -6,6 +6,7 @@ from typing import (
     Any,
     overload,
 )
+from augmented_gpt import LOGGER, MSG_LOGGER
 from augmented_gpt.augmented_gpt import ChatCompletion
 from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
 from augmented_gpt.tools import ToolRegistry
@@ -39,7 +40,6 @@ class GPTAssistantBackend(LLMBackend):
         super().__init__(
             model, tools, gpt_options, api_key, instructions, name, description, debug
         )
-        self.__instructions = instructions
         self.__assistant = self.__create_or_retrieve_assistant(assistant_id)
         self.__thread = self.__create_or_reuse_thread_sync(thread_id)
 
@@ -72,11 +72,11 @@ class GPTAssistantBackend(LLMBackend):
             ass = client.beta.assistants.create(
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
-                instructions=self.__instructions or NOT_GIVEN,
+                instructions=self.instructions or NOT_GIVEN,
                 tools=tools,
                 model=self.model,
             )
-            print("Create assistant", ass.id)
+            LOGGER.info(f"Create assistant {ass.id}")
             return ass
         else:
             ass = client.beta.assistants.retrieve(id)
@@ -84,10 +84,10 @@ class GPTAssistantBackend(LLMBackend):
                 id,
                 name=self.name or NOT_GIVEN,
                 description=self.description or NOT_GIVEN,
-                instructions=self.__instructions or NOT_GIVEN,
+                instructions=self.instructions or NOT_GIVEN,
                 tools=tools,
             )
-            print("Reuse assistant", ass.id)
+            LOGGER.info(f"Reuse assistant {ass.id}")
             return ass
 
     def __list_threads(self) -> list[str]:
@@ -99,33 +99,36 @@ class GPTAssistantBackend(LLMBackend):
         if thread_id is not None:
             try:
                 t = client.beta.threads.retrieve(thread_id)
-                print("Reuse thread", t.id)
+                LOGGER.info(f"Reuse thread {t.id}")
                 return Thread(self, t)
             except BaseException as e:
-                print(e)
+                LOGGER.error(f"ERROR: {e}")
                 pass
         # If there is already a thread, retrieve and reuse it
         threads = self.__list_threads()
         if len(threads) > 0:
             t = client.beta.threads.retrieve(threads[0])
-            print("Reuse thread", t.id)
+            LOGGER.info(f"Reuse thread {t.id}")
         else:
             t = client.beta.threads.create()
-            print("Create thread", t.id)
+            LOGGER.info(f"Create thread {t.id}")
         return Thread(self, t)
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(  # type: ignore
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ):
         assert not stream
         # Add messages
@@ -137,30 +140,39 @@ class GPTAssistantBackend(LLMBackend):
                 if m.files is not None
                 else None
             )
+            MSG_LOGGER.info(f"{m}")
             await self.__thread.add(m.content, files=files)
-        # # Run the thread
-        run = await self.__thread.run()
+        # Run the thread
+        run = await self.__thread.run(context=context)
         async for m in run:
             msg = Message(role=Role.ASSISTANT, content=m)
+            MSG_LOGGER.info(f"{msg}")
             yield msg
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(self.__chat_completion(messages, stream=True))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=True, context=context)
+            )
         else:
-            return ChatCompletion(self.__chat_completion(messages, stream=False))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=False, context=context)
+            )
 
     def get_current_assistant_id(self) -> Optional[str]:
         return self.__assistant.id
@@ -195,7 +207,7 @@ class Thread:
     async def upload_file(self, file: Path) -> str:
         with open(file, "rb") as f:
             res = await self.assistant.client.files.create(file=f, purpose="assistants")
-            print(f"Uploaded `{str(file)}` to OpenAI with id {res.id}.")
+            LOGGER.debug(f"Uploaded `{str(file)}` to OpenAI with id {res.id}.")
             return res.id
 
     async def add(self, content: str, files: list[Path] | None) -> str:
@@ -212,7 +224,7 @@ class Thread:
         )
         return msg.id
 
-    async def run(self):
+    async def run(self, context: Any = None):
         latest_msg_id: str | None = None
         messages = await self.assistant.client.beta.threads.messages.list(
             thread_id=self.id, order="desc", limit=1
@@ -224,14 +236,17 @@ class Thread:
             thread_id=self.__thread.id,
             assistant_id=self.assistant.id,
         )
-        return Run(self, run, latest_msg_id)
+        return Run(self, run, latest_msg_id, context=context)
 
 
 class Run:
-    def __init__(self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None):
+    def __init__(
+        self, thread: Thread, run: OpenAIRun, latest_msg_id: str | None, context: Any
+    ):
         self.thread = thread
         self.__run = run
         self.__latest_msg_id: str | None = latest_msg_id
+        self.__context = context
 
     @property
     def id(self):
@@ -240,7 +255,6 @@ class Run:
     async def __do_actions(self):
         assert self.__run.required_action is not None
         tool_calls = self.__run.required_action.submit_tool_outputs.tool_calls
-        print(tool_calls)
         results = await self.thread.assistant.tools.call_tools(
             [
                 ToolCall(
@@ -249,7 +263,8 @@ class Run:
                     id=t.id,
                 )
                 for t in tool_calls
-            ]
+            ],
+            context=self.__context,
         )
         tool_outputs: list[ToolOutput] = []
         for m in results:

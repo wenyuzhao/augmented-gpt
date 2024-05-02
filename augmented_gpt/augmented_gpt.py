@@ -11,7 +11,7 @@ from typing import (
 )
 
 from .message import *
-from .tools import ToolRegistry, Tools
+from .tools import ToolInfo, ToolRegistry, Tools
 import os
 
 from typing import TYPE_CHECKING
@@ -83,8 +83,10 @@ class AugmentedGPT:
                 thread_id=thread_id,
                 debug=debug,
             )
-        self.on_tool_start: Optional[Callable[[str, str, Any], Any]] = None
-        self.on_tool_end: Optional[Callable[[str, str, Any, Any], Any]] = None
+        self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
+        self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
+        self.name = name
+        self.description = description
 
     def reset(self):
         self.__backend.reset()
@@ -101,6 +103,7 @@ class AugmentedGPT:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
@@ -112,16 +115,19 @@ class AugmentedGPT:
         self,
         messages: list[Message],
         stream: bool = False,
+        context: Any = None,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
             return self.__backend.chat_completion(
                 messages,
                 stream=True,
+                context=context,
             )
         else:
             return self.__backend.chat_completion(
                 messages,
                 stream=False,
+                context=context,
             )
 
     def get_current_assistant_id(self) -> Optional[str]:
@@ -135,3 +141,6 @@ class AugmentedGPT:
 
     def get_model(self) -> "GPTModel":
         return self.__backend.model
+
+    def get_tools(self) -> ToolRegistry:
+        return self.__backend.tools

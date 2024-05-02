@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signin</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        main {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            flex-direction: row;
+            border: 2px solid #ccc;
+            border-radius: 500px;
+            transition: all 0.5s;
+        }
+
+        form:focus-within {
+            border-color: #007bff;
+        }
+
+        form:focus-within input[type="password"] {
+            border-right: 1px solid #007bff;
+        }
+
+        input[type="password"][content=""] {
+
+            letter-spacing: unset;
+        }
+
+        input[type="password"] {
+            padding: 10px;
+            padding-left: 16px;
+            letter-spacing: 5px;
+            border: none;
+            border-right: 1px solid #ccc;
+            border-top-left-radius: 500px;
+            border-bottom-left-radius: 500px;
+            width: 150px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.5s;
+            /* text-align: center; */
+        }
+
+        input[type="password"]::placeholder {
+            letter-spacing: 1px;
+        }
+
+        input[type="submit"] {
+            padding: 10px;
+            border-top-right-radius: 500px;
+            border-bottom-right-radius: 500px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: all 0.5s;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <form action="{{verify_access_code_url}}" method="post" onsubmit="saveAccessCode()">
+            <input type="password" name="access_code" placeholder="Access Code" required>
+            <input type="submit" value="➔">
+        </form>
+        <script>
+            const query = new URLSearchParams(window.location.search);
+            if (query.get('invalid') === "1") {
+                alert("Invalid access code. Please try again.");
+            }
+            function saveAccessCode() {
+                const accessCode = document.querySelector('input[type="password"]').value;
+                localStorage.setItem('access_code', accessCode);
+            }
+            window.addEventListener('load', () => {
+                document.querySelector('input[type="password"]').focus();
+                // if the access code is already in local storage, fill it in and submit the form
+                const accessCode = localStorage.getItem('access_code');
+                if (accessCode && query.get('invalid') !== "1") {
+                    document.querySelector('input[type="password"]').value = accessCode;
+                    document.querySelector('form').submit();
+                }
+                if (query.get('invalid') === "1") {
+                    // delete the access code from local storage if it's invalid
+                    localStorage.removeItem('access_code');
+                }
+            });
+        </script>
+    </main>
+</body>
+
+</html>

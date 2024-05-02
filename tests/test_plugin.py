@@ -1,5 +1,5 @@
 from augmented_gpt import AugmentedGPT, Message, Role, param, tool
-from augmented_gpt.plugins import *
+from augmented_gpt.plugins import Plugin, MemoryPlugin
 from typing import Optional
 import pytest
 import dotenv

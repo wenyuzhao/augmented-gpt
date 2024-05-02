@@ -4,6 +4,7 @@ from typing import (
     Any,
     overload,
 )
+from augmented_gpt import MSG_LOGGER
 
 from augmented_gpt.augmented_gpt import ChatCompletion
 from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
@@ -70,23 +71,25 @@ class GPTChatBackend(LLMBackend):
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(
-        self,
-        messages: list[Message],
-        stream: bool = False,
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ):
         history = [h for h in self.history.get()]
         old_history_length = len(history)
         history.extend(messages)
         for m in messages:
+            MSG_LOGGER.info(f"{m}")
             await self._on_new_chat_message(m)
         # First completion request
         message: Message
@@ -96,18 +99,24 @@ class GPTChatBackend(LLMBackend):
             message = await s.wait_for_completion()
         else:
             message = await self.__chat_completion_request(history, stream=False)
-            yield message
+            if message.content is not None:
+                yield message
         history.append(message)
+        MSG_LOGGER.info(f"{message}")
         await self._on_new_chat_message(message)
         # Run tools and submit results until convergence
         while message.function_call is not None or len(message.tool_calls) > 0:
             # Run tools
             if len(message.tool_calls) > 0:
-                results = await self.tools.call_tools(message.tool_calls)
+                results = await self.tools.call_tools(
+                    message.tool_calls, context=context
+                )
                 history.extend(results)
             else:
                 assert message.function_call is not None
-                r = await self.tools.call_function(message.function_call, tool_id=None)
+                r = await self.tools.call_function(
+                    message.function_call, tool_id=None, context=context
+                )
                 history.append(r)
             # Submit results
             message: Message
@@ -117,29 +126,38 @@ class GPTChatBackend(LLMBackend):
                 message = await r.wait_for_completion()
             else:
                 message = await self.__chat_completion_request(history, stream=False)
-                yield message
+                if message.content is not None:
+                    yield message
             history.append(message)
+            MSG_LOGGER.info(f"{message}")
             await self._on_new_chat_message(message)
         for h in history[old_history_length:]:
             self.history.add(h)
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self,
+        messages: list[Message],
+        stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self, messages: list[Message], stream: bool = False
+        self, messages: list[Message], stream: bool = False, context: Any = None
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(self.__chat_completion(messages, stream=True))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=True, context=context)
+            )
         else:
-            return ChatCompletion(self.__chat_completion(messages, stream=False))
+            return ChatCompletion(
+                self.__chat_completion(messages, stream=False, context=context)
+            )
 
 
 class History:

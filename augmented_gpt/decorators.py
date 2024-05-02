@@ -1,7 +1,6 @@
 from typing import (
     Callable,
     Coroutine,
-    List,
     TypeVar,
     Any,
     Optional,
@@ -16,8 +15,8 @@ class _Param:
     def __init__(
         self,
         description: Optional[str] = None,
-        default: Optional[Any] = None,
-        enum: Optional[List[Any]] = None,
+        default: Optional[str | int] = None,
+        enum: Optional[list[str] | list[int]] = None,
     ):
         self.description = description
         self.default = default
@@ -26,8 +25,8 @@ class _Param:
 
 def param(
     description: Optional[str] = None,
-    default: Optional[Any] = None,
-    enum: Optional[List[Any]] = None,
+    default: Optional[str | int] = None,
+    enum: Optional[list[str] | list[int]] = None,
 ) -> Any:
     return _Param(description, default, enum)
 
@@ -55,9 +54,11 @@ def tool(
         for pname, param in inspect.signature(callable).parameters.items():
             if pname == "self":
                 continue
-            assert isinstance(
-                param.default, _Param
+            assert (
+                isinstance(param.default, _Param) or param.name == "__context__"
             ), f"Invalid default value for parameter `{pname}` in function {fname}"
+            if not isinstance(param.default, _Param):
+                continue
             prop, required = {}, True
             match param.annotation:
                 case x if x == str or x == Optional[str]:
@@ -72,23 +73,23 @@ def tool(
                     ), f"Invalid type annotation for parameter `{pname}` in function {fname}"
             if param.default.description is not None:
                 prop["description"] = param.default.description
+            if param.default.enum is not None:
+                prop["enum"] = param.default.enum
             if required:
                 params["required"].append(pname)
-            else:
-                assert (
-                    param.default.default is not None
-                ), f"Optional parameter `{pname}` in function {fname} requires a default value"
             params["properties"][pname] = prop
         # store gpt function metadata to the callable object
+        from augmented_gpt.tools import ToolInfo, TOOL_INFO_TAG
+
         setattr(
             callable,
-            "gpt_function_call_info",
-            {
-                "name": fname,
-                "display_name": display_name or fname,
-                "description": callable.__doc__ or "",
-                "parameters": params,
-            },
+            TOOL_INFO_TAG,
+            ToolInfo(
+                name=fname,
+                display_name=display_name or fname,
+                description=callable.__doc__ or "",
+                parameters=params,
+            ),
         )
         return callable
 

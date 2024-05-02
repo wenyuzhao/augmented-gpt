@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import logging
 from typing import Any, List, Literal, Optional, overload
 
 import openai
@@ -75,8 +74,6 @@ class LLMBackend:
         self.model = model
         self.api_key = api_key
         self.client = openai.AsyncOpenAI(api_key=api_key)
-        self.logger = logging.getLogger("AugmentedGPT")
-        # self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.tools = tools
         self.instructions = instructions
 
@@ -89,17 +86,19 @@ class LLMBackend:
         self,
         messages: List[Message],
         stream: Literal[False] = False,
+        context: Any = None,
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: List[Message], stream: Literal[True], context: Any = None
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
         messages: list[Message],
         stream: bool = False,
+        context: Any = None,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         raise NotImplementedError
 
