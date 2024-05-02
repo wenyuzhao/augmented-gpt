@@ -220,7 +220,10 @@ class Thread:
             self.__thread.id,
             content=content,
             role="user",
-            attachments=[{"file_id": fid, "add_to": ["file_search"]} for fid in file_ids or []],
+            attachments=[
+                {"file_id": fid, "tools": [{"type": "file_search"}]}
+                for fid in file_ids or []
+            ],
         )
         return msg.id
 
