@@ -15,8 +15,11 @@ async def tts(
     api_key: str | None = None,
 ):
     client = openai.AsyncOpenAI(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
-    response = await client.audio.speech.create(model=model, voice=voice, input=text)
-    response.stream_to_file(output)
+    response = client.audio.speech.with_streaming_response.create(
+        model=model, voice=voice, input=text
+    )
+    async with response as r:
+        await r.stream_to_file(output)
 
 
 async def stt(
