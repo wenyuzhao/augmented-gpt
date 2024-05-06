@@ -64,12 +64,8 @@ class LLMBackend:
         gpt_options: GPTOptions,
         api_key: str,
         instructions: Optional[str],
-        name: Optional[str],
-        description: Optional[str],
         debug: bool,
     ):
-        self.name = name
-        self.description = description
         self.debug = debug
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model

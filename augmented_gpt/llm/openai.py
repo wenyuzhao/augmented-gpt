@@ -24,13 +24,9 @@ class OpenAIBackend(LLMBackend):
         gpt_options: GPTOptions,
         api_key: str,
         instructions: Optional[str],
-        name: Optional[str],
-        description: Optional[str],
         debug: bool,
     ) -> None:
-        super().__init__(
-            model, tools, gpt_options, api_key, instructions, name, description, debug
-        )
+        super().__init__(model, tools, gpt_options, api_key, instructions, debug)
         self.history = History(instructions=instructions)
         self.client = openai.AsyncOpenAI(api_key=api_key)
 
