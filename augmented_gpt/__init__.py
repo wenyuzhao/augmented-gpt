@@ -19,7 +19,7 @@ from .message import (
 from .plugins import Plugin
 from . import plugins
 from .augmented_gpt import AugmentedGPT, ChatCompletion, ServerError
-from .gpt import GPTOptions, GPTModel
+from .llm import GPTOptions, GPTModel
 from . import utils
 from .tools import ToolInfo, ToolRegistry, Tools
 

@@ -4,17 +4,19 @@ from typing import (
     Any,
     overload,
 )
-from augmented_gpt import MSG_LOGGER
 
-from augmented_gpt.augmented_gpt import ChatCompletion
-from augmented_gpt.gpt import LLMBackend, GPTModel, GPTOptions
-from augmented_gpt.tools import ToolRegistry
+from .. import MSG_LOGGER
+
+from ..augmented_gpt import ChatCompletion
+from ..llm import LLMBackend, GPTModel, GPTOptions
+from ..tools import ToolRegistry
+from ..history import History
 
 from ..message import *
 from openai.types.chat import ChatCompletionMessageParam
 
 
-class GPTChatBackend(LLMBackend):
+class OpenAIBackend(LLMBackend):
     def __init__(
         self,
         model: GPTModel,
@@ -30,6 +32,7 @@ class GPTChatBackend(LLMBackend):
             model, tools, gpt_options, api_key, instructions, name, description, debug
         )
         self.history = History(instructions=instructions)
+        self.client = openai.AsyncOpenAI(api_key=api_key)
 
     def reset(self):
         self.history.reset()
@@ -159,21 +162,5 @@ class GPTChatBackend(LLMBackend):
                 self.__chat_completion(messages, stream=False, context=context)
             )
 
-
-class History:
-    def __init__(self, instructions: Optional[str]) -> None:
-        self.__instructions = instructions
-        self.__messages: list[Message] = []
-        self.reset()
-
-    def reset(self):
-        self.__messages = []
-        if self.__instructions is not None:
-            self.add(Message(role=Role.SYSTEM, content=self.__instructions))
-
-    def get(self) -> list[Message]:
-        return self.__messages
-
-    def add(self, message: Message):
-        # TODO: auto trim history
-        self.__messages.append(message)
+    def get_history(self) -> History:
+        return self.history

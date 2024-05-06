@@ -6,6 +6,7 @@ import openai
 from ..tools import ToolRegistry
 from ..message import Message, MessageStream
 from ..augmented_gpt import ChatCompletion
+from ..history import History
 
 
 GPTModel = (
@@ -73,7 +74,7 @@ class LLMBackend:
         self.gpt_options = gpt_options or GPTOptions()
         self.model = model
         self.api_key = api_key
-        self.client = openai.AsyncOpenAI(api_key=api_key)
+        # self.client = openai.AsyncOpenAI(api_key=api_key)
         self.tools = tools
         self.instructions = instructions
 
@@ -100,16 +101,10 @@ class LLMBackend:
         stream: bool = False,
         context: Any = None,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
-        raise NotImplementedError
+        raise NotImplemented
 
     async def _on_new_chat_message(self, msg: Message):
         await self.tools.on_new_chat_message(msg)
 
-    def get_current_assistant_id(self) -> Optional[str]:
-        return None
-
-    def get_current_thread_id(self) -> Optional[str]:
-        return None
-
-    def set_model(self, model: "GPTModel"):
-        self.model = model
+    def get_history(self) -> History:
+        raise NotImplemented

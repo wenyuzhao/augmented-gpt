@@ -3,9 +3,9 @@ import inspect
 from inspect import Parameter
 import json
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
-from augmented_gpt import LOGGER, MSG_LOGGER
+from . import LOGGER, MSG_LOGGER
 
-from augmented_gpt.message import JSON, FunctionCall, Message, Role, ToolCall
+from .message import JSON, FunctionCall, Message, Role, ToolCall
 
 from .plugins import Plugin
 

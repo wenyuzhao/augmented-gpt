@@ -12,13 +12,14 @@ from typing import (
 
 from .message import *
 from .tools import ToolInfo, ToolRegistry, Tools
+from .history import History
 import os
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .plugins import Plugin
-    from .gpt import GPTModel, GPTOptions
+    from .llm import GPTModel, GPTOptions
 
 M = TypeVar("M", Message, MessageStream)
 
@@ -46,7 +47,7 @@ class AugmentedGPT:
         gpt_options: Optional["GPTOptions"] = None,
         api_key: Optional[str] = None,
         instructions: Optional[str] = None,
-        api: Literal["chat", "assistant"] = "chat",
+        llm: Literal["openai"] = "openai",
         name: Optional[str] = None,
         description: Optional[str] = None,
         assistant_id: str | None = None,
@@ -55,12 +56,11 @@ class AugmentedGPT:
     ):
         _api_key = api_key or os.environ.get("OPENAI_API_KEY")
         assert _api_key is not None, "Missing OPENAI_API_KEY"
-        from .gpt import LLMBackend, GPTOptions
-        from .gpt.chat import GPTChatBackend
-        from .gpt.assistant import GPTAssistantBackend
+        from .llm import LLMBackend, GPTOptions
+        from .llm.openai import OpenAIBackend
 
-        if api == "chat":
-            self.__backend: LLMBackend = GPTChatBackend(
+        if llm == "openai":
+            self.__backend: LLMBackend = OpenAIBackend(
                 model=model,
                 tools=ToolRegistry(self, tools),
                 gpt_options=gpt_options or GPTOptions(),
@@ -71,18 +71,7 @@ class AugmentedGPT:
                 debug=debug,
             )
         else:
-            self.__backend: LLMBackend = GPTAssistantBackend(
-                model=model,
-                tools=ToolRegistry(self, tools),
-                gpt_options=gpt_options or GPTOptions(),
-                api_key=_api_key,
-                instructions=instructions,
-                name=name,
-                description=description,
-                assistant_id=assistant_id,
-                thread_id=thread_id,
-                debug=debug,
-            )
+            raise NotImplemented
         self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
         self.name = name
@@ -91,9 +80,9 @@ class AugmentedGPT:
     def reset(self):
         self.__backend.reset()
 
-    @property
-    def openai_client(self):
-        return self.__backend.client
+    # @property
+    # def openai_client(self):
+    #     return self.__backend.client
 
     def get_plugin(self, name: str) -> "Plugin":
         return self.__backend.tools.get_plugin(name)
@@ -130,14 +119,8 @@ class AugmentedGPT:
                 context=context,
             )
 
-    def get_current_assistant_id(self) -> Optional[str]:
-        return self.__backend.get_current_assistant_id()
-
-    def get_current_thread_id(self) -> Optional[str]:
-        return self.__backend.get_current_thread_id()
-
-    def set_model(self, model: "GPTModel"):
-        self.__backend.set_model(model)
+    def get_history(self) -> History:
+        return self.__backend.get_history()
 
     def get_model(self) -> "GPTModel":
         return self.__backend.model
