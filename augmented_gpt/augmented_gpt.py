@@ -48,6 +48,8 @@ class AugmentedGPT:
         api_key: Optional[str] = None,
         instructions: Optional[str] = None,
         llm: Literal["openai"] = "openai",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
         debug: bool = False,
     ):
         _api_key = api_key or os.environ.get("OPENAI_API_KEY")
@@ -68,6 +70,8 @@ class AugmentedGPT:
             raise NotImplemented
         self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
+        self.name = name
+        self.description = description
 
     def reset(self):
         self.__backend.reset()
