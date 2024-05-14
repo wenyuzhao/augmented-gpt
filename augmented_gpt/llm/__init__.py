@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, List, Literal, Optional, overload
 
-import openai
-
 from ..tools import ToolRegistry
 from ..message import Message, MessageStream
 from ..augmented_gpt import ChatCompletion

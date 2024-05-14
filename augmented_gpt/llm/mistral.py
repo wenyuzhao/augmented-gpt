@@ -79,10 +79,17 @@ class MistralBackend(LLMBackend):
             assert m.tool_call_id is not None
             return ChatMessage(role="tool", name=m.tool_call_id, content=content)
         if m.role == Role.USER:
+            if not isinstance(content, str):
+                for part in content:
+                    assert isinstance(
+                        part, ContentPartText
+                    ), "Only text content is supported"
             _content = (
                 content
                 if isinstance(content, str)
-                else [c.content for c in content if isinstance(c, ContentPartText)]
+                else "\n".join(
+                    [c.content for c in content if isinstance(c, ContentPartText)]
+                )
             )
             return ChatMessage(role="user", content=_content)
         if m.role == Role.ASSISTANT:
@@ -135,10 +142,12 @@ class MistralBackend(LLMBackend):
                 args["functions"] = self.tools.to_json(legacy=True)
                 args["function_call"] = "auto"
         if stream:
-            gen = self.client.chat_stream(**args)
+            gen = self.client.chat_stream(**args, safe_mode=False, safe_prompt=False)
             return ChatMessageStream(gen)
         else:
-            response = await self.client.chat(**args)
+            response = await self.client.chat(
+                **args, safe_mode=False, safe_prompt=False
+            )
             return self.__cm_to_message(response.choices[0].message)
 
     def __cm_to_message(self, m: ChatMessage) -> "Message":
