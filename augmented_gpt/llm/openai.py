@@ -1,58 +1,92 @@
-from typing import (
-    AsyncGenerator,
-    Literal,
-    Any,
-    overload,
-)
+import json
+import os
+from typing import AsyncIterator, Literal, Any, Optional, overload, override
 
 from .. import MSG_LOGGER
 
-from ..augmented_gpt import ChatCompletion
-from ..llm import LLMBackend, GPTModel, GPTOptions
+from ..llm import LLMBackend, Model, ModelOptions
 from ..tools import ToolRegistry
-from ..history import History
 
-from ..message import *
+from ..message import (
+    Message,
+    Role,
+    MessageStream,
+    ToolCall,
+    FunctionCall,
+)
 from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat import (
+    ChatCompletionChunk,
+    ChatCompletionMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+    ChatCompletionFunctionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageToolCallParam,
+    ChatCompletionMessage,
+)
+import openai
+from openai.types.chat.chat_completion_message import FunctionCall as OpenAIFunctionCall
+from openai.types.beta.threads.required_action_function_tool_call import (
+    Function as OpenAIThreadFunction,
+)
+from openai.types.chat.chat_completion_message_tool_call import (
+    Function as OpenAIFunction,
+)
+from openai.types.chat.chat_completion_chunk import (
+    ChatCompletionChunk,
+    ChoiceDeltaToolCall,
+)
+import openai
+from openai.types.chat import (
+    ChatCompletionChunk,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionContentPartImageParam,
+)
 
 
 class OpenAIBackend(LLMBackend):
     def __init__(
         self,
-        model: GPTModel,
+        model: Model,
         tools: ToolRegistry,
-        gpt_options: GPTOptions,
-        api_key: str,
+        options: ModelOptions,
         instructions: Optional[str],
         debug: bool,
     ) -> None:
-        super().__init__(model, tools, gpt_options, api_key, instructions, debug)
-        self.history = History(instructions=instructions)
+        super().__init__(model, tools, options, instructions, debug)
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
         self.client = openai.AsyncOpenAI(api_key=api_key)
 
     def reset(self):
         self.history.reset()
 
     @overload
-    async def __chat_completion_request(
+    @override
+    async def _chat_completion_request(
         self, messages: list[Message], stream: Literal[False]
     ) -> Message: ...
 
     @overload
-    async def __chat_completion_request(
+    @override
+    async def _chat_completion_request(
         self, messages: list[Message], stream: Literal[True]
     ) -> MessageStream: ...
 
-    async def __chat_completion_request(
+    @override
+    async def _chat_completion_request(
         self, messages: list[Message], stream: bool
     ) -> Message | MessageStream:
         msgs: list[ChatCompletionMessageParam] = [
-            m.to_chat_completion_message_param() for m in messages
+            self.__message_to_ccmp(m) for m in messages
         ]
         args: Any = {
-            "model": self.model,
+            "model": self.model.model,
             "messages": msgs,
-            **self.gpt_options.as_kwargs(),
+            **self.options.as_kwargs(),
         }
         if not self.tools.is_empty():
             if self.support_tools():
@@ -66,97 +100,168 @@ class OpenAIBackend(LLMBackend):
             return ChatMessageStream(response)
         else:
             response = await self.client.chat.completions.create(**args, stream=False)
-            return Message.from_chat_completion_message(response.choices[0].message)
+            return self.__ccm_to_message(response.choices[0].message)
 
-    @overload
-    async def __chat_completion(
+    def __message_to_ccmp(self, m: Message) -> ChatCompletionMessageParam:
+        content = m.content or ""
+        if m.role == Role.SYSTEM:
+            assert isinstance(content, str)
+            return ChatCompletionSystemMessageParam(role="system", content=content)
+        if m.role == Role.FUNCTION:
+            assert isinstance(content, str)
+            assert m.name is not None
+            return ChatCompletionFunctionMessageParam(
+                role="function", name=m.name, content=content
+            )
+        if m.role == Role.TOOL:
+            assert isinstance(content, str)
+            assert m.tool_call_id is not None
+            return ChatCompletionToolMessageParam(
+                role="tool",
+                tool_call_id=m.tool_call_id,
+                content=content,
+            )
+        if m.role == Role.USER:
+            _content = (
+                content
+                if isinstance(content, str)
+                else [c.to_openai_content_part() for c in content]
+            )
+            return ChatCompletionUserMessageParam(role="user", content=_content)
+        if m.role == Role.ASSISTANT:
+            assert isinstance(content, str)
+            if len(m.tool_calls) > 0:
+                return ChatCompletionAssistantMessageParam(
+                    role="assistant",
+                    content=content,
+                    tool_calls=[
+                        self.__tool_call_to_openai_tool_call(tool_call)
+                        for tool_call in m.tool_calls
+                    ],
+                )
+            return ChatCompletionAssistantMessageParam(
+                role="assistant", content=content
+            )
+        raise RuntimeError("Unreachable")
+
+    def __ccm_to_message(self, m: ChatCompletionMessage) -> "Message":
+        return Message(
+            role=Role.from_str(m.role),
+            content=m.content,
+            name=m.function_call.name if m.function_call is not None else None,
+            tool_calls=(
+                [
+                    ToolCall(
+                        id=t.id,
+                        function=self.__oai_function_call_to_function_call(t.function),
+                        type=t.type,
+                    )
+                    for t in m.tool_calls
+                ]
+                if m.tool_calls is not None
+                else []
+            ),
+        )
+
+    def __tool_call_to_openai_tool_call(
+        self, tool_call: ToolCall
+    ) -> ChatCompletionMessageToolCallParam:
+        return {
+            "id": tool_call.id,
+            "function": tool_call.function.to_dict(),
+            "type": tool_call.type,
+        }
+
+    def __oai_function_call_to_function_call(
         self,
-        messages: list[Message],
-        stream: Literal[False] = False,
-        context: Any = None,
-    ) -> AsyncGenerator[Message, None]: ...
+        x: OpenAIFunctionCall | OpenAIFunction | OpenAIThreadFunction,
+    ) -> "FunctionCall":
+        return FunctionCall(
+            name=x.name,
+            arguments=json.loads(x.arguments),
+        )
 
-    @overload
-    async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True], context: Any = None
-    ) -> AsyncGenerator[MessageStream, None]: ...
 
-    async def __chat_completion(
-        self, messages: list[Message], stream: bool = False, context: Any = None
+class ChatMessageStream(MessageStream):
+    def __init__(
+        self,
+        response: openai.AsyncStream[ChatCompletionChunk],
     ):
-        history = [h for h in self.history.get()]
-        old_history_length = len(history)
-        history.extend(messages)
-        for m in messages:
-            MSG_LOGGER.info(f"{m}")
-            await self._on_new_chat_message(m)
-        # First completion request
-        message: Message
-        if stream:
-            s = await self.__chat_completion_request(history, stream=True)
-            yield s
-            message = await s.wait_for_completion()
-        else:
-            message = await self.__chat_completion_request(history, stream=False)
-            if message.content is not None:
-                yield message
-        history.append(message)
-        MSG_LOGGER.info(f"{message}")
-        await self._on_new_chat_message(message)
-        # Run tools and submit results until convergence
-        while message.function_call is not None or len(message.tool_calls) > 0:
-            # Run tools
-            if len(message.tool_calls) > 0:
-                results = await self.tools.call_tools(
-                    message.tool_calls, context=context
-                )
-                history.extend(results)
-            else:
-                assert message.function_call is not None
-                r = await self.tools.call_function(
-                    message.function_call, tool_id=None, context=context
-                )
-                history.append(r)
-            # Submit results
-            message: Message
-            if stream:
-                r = await self.__chat_completion_request(history, stream=True)
-                yield r
-                message = await r.wait_for_completion()
-            else:
-                message = await self.__chat_completion_request(history, stream=False)
-                if message.content is not None:
-                    yield message
-            history.append(message)
-            MSG_LOGGER.info(f"{message}")
-            await self._on_new_chat_message(message)
-        for h in history[old_history_length:]:
-            self.history.add(h)
+        self.__response = response
+        self.__aiter = response.__aiter__()
+        self.__message = Message(role=Role.ASSISTANT)
+        self.__tool_calls: list[ChoiceDeltaToolCall] = []
+        self.__final_message: Optional[Message] = None
 
-    @overload
-    def chat_completion(
-        self,
-        messages: list[Message],
-        stream: Literal[False] = False,
-        context: Any = None,
-    ) -> ChatCompletion[Message]: ...
-
-    @overload
-    def chat_completion(
-        self, messages: list[Message], stream: Literal[True], context: Any = None
-    ) -> ChatCompletion[MessageStream]: ...
-
-    def chat_completion(
-        self, messages: list[Message], stream: bool = False, context: Any = None
-    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
-        if stream:
-            return ChatCompletion(
-                self.__chat_completion(messages, stream=True, context=context)
+    def __get_final_merged_tool_calls(self) -> list[ToolCall]:
+        return [
+            ToolCall(
+                id=t.id or "",
+                function=FunctionCall(
+                    name=t.function.name or "",
+                    arguments=json.loads(t.function.arguments or ""),
+                ),
+                type="function",
             )
-        else:
-            return ChatCompletion(
-                self.__chat_completion(messages, stream=False, context=context)
-            )
+            for t in self.__tool_calls
+            if t.function is not None
+        ]
 
-    def get_history(self) -> History:
-        return self.history
+    def __merge_tool_calls(self, delta: list[ChoiceDeltaToolCall]):
+        for d in delta:
+            if d.index < len(self.__tool_calls):
+                t = self.__tool_calls[d.index]
+                assert t.id is not None
+                t.id += d.id or ""
+                assert t.function is not None
+                assert d.function is not None
+                t.function.name = (t.function.name or "") + (d.function.name or "")
+                t.function.arguments = (t.function.arguments or "") + (
+                    d.function.arguments or ""
+                )
+            else:
+                assert d.index == len(self.__tool_calls)
+                assert d.function is not None
+                self.__tool_calls.append(d)
+
+    async def __anext__impl(self) -> str:
+        if self.__final_message is not None:
+            raise StopAsyncIteration()
+        try:
+            chunk = await self.__aiter.__anext__()
+        except StopAsyncIteration:
+            self.__message.tool_calls = self.__get_final_merged_tool_calls()
+            self.__final_message = self.__message
+            raise StopAsyncIteration()
+        if hasattr(chunk, "error"):
+            raise RuntimeError(chunk.error["message"])  # type: ignore
+        delta = chunk.choices[0].delta
+        # merge self.__message and delta
+        if delta.content is not None:
+            if self.__message.content is None:
+                self.__message.content = ""
+            assert isinstance(delta.content, str)
+            assert isinstance(self.__message.content, str)
+            self.__message.content += delta.content
+        if delta.tool_calls is not None:
+            self.__merge_tool_calls(delta.tool_calls)
+        if delta.role is not None:
+            self.__message.role = Role.from_str(delta.role)
+        return delta.content or ""
+
+    async def __anext__(self) -> str:
+        while True:
+            delta = await self.__anext__impl()
+            if len(delta) > 0:
+                return delta
+
+    def __aiter__(self) -> AsyncIterator[str]:
+        return self
+
+    async def wait_for_completion(self) -> Message:
+        if self.__final_message is not None:
+            return self.__final_message
+        async for _ in self:
+            ...
+        assert self.__final_message is not None
+        return self.__final_message

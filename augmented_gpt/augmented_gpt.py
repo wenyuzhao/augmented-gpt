@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .plugins import Plugin
-    from .llm import GPTModel, GPTOptions
+    from .llm import Model, ModelOptions
 
 M = TypeVar("M", Message, MessageStream)
 
@@ -38,31 +38,38 @@ class ChatCompletion(Generic[M]):
 
 class AugmentedGPT:
     def support_tools(self) -> bool:
-        return "vision" not in self.__backend.model
+        return True
 
     def __init__(
         self,
-        model: "GPTModel" = "gpt-4-turbo",
+        model: Union["Model", str] = "gpt-4-turbo",
         tools: Optional[Tools] = None,
-        gpt_options: Optional["GPTOptions"] = None,
+        options: Optional["ModelOptions"] = None,
         api_key: Optional[str] = None,
         instructions: Optional[str] = None,
-        llm: Literal["openai"] = "openai",
         name: Optional[str] = None,
         description: Optional[str] = None,
         debug: bool = False,
     ):
-        _api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        assert _api_key is not None, "Missing OPENAI_API_KEY"
-        from .llm import LLMBackend, GPTOptions
+        from .llm import LLMBackend, ModelOptions
         from .llm.openai import OpenAIBackend
+        from .llm.mistral import MistralBackend
 
-        if llm == "openai":
+        if isinstance(model, str):
+            model = Model(model)
+        if model.api == "openai":
             self.__backend: LLMBackend = OpenAIBackend(
                 model=model,
                 tools=ToolRegistry(self, tools),
-                gpt_options=gpt_options or GPTOptions(),
-                api_key=_api_key,
+                options=options or ModelOptions(),
+                instructions=instructions,
+                debug=debug,
+            )
+        elif model.api == "mistral":
+            self.__backend: LLMBackend = MistralBackend(
+                model=model,
+                tools=ToolRegistry(self, tools),
+                options=options or ModelOptions(),
                 instructions=instructions,
                 debug=debug,
             )
@@ -118,7 +125,7 @@ class AugmentedGPT:
     def get_history(self) -> History:
         return self.__backend.get_history()
 
-    def get_model(self) -> "GPTModel":
+    def get_model(self) -> "Model":
         return self.__backend.model
 
     def get_tools(self) -> ToolRegistry:
