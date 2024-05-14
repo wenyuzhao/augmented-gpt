@@ -64,6 +64,7 @@ class AugmentedGPT:
                 options=options or ModelOptions(),
                 instructions=instructions,
                 debug=debug,
+                api_key=api_key,
             )
         elif model.api == "mistral":
             self.__backend: LLMBackend = MistralBackend(
@@ -72,6 +73,7 @@ class AugmentedGPT:
                 options=options or ModelOptions(),
                 instructions=instructions,
                 debug=debug,
+                api_key=api_key,
             )
         else:
             raise NotImplemented

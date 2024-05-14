@@ -54,9 +54,10 @@ class OpenAIBackend(LLMBackend):
         options: ModelOptions,
         instructions: Optional[str],
         debug: bool,
+        api_key: str | None = None,
     ) -> None:
         super().__init__(model, tools, options, instructions, debug)
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         self.client = openai.AsyncOpenAI(api_key=api_key)
