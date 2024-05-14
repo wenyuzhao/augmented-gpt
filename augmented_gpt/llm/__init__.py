@@ -62,9 +62,9 @@ class LLMBackend:
         self.instructions = instructions
         self.history = History(instructions=instructions)
 
-    def reset(self) -> None:
+    def reset(self):
         """Clear and reset all history"""
-        raise NotImplementedError()
+        self.history.reset()
 
     def get_history(self) -> History:
         return self.history

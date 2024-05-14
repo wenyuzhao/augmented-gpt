@@ -62,9 +62,6 @@ class OpenAIBackend(LLMBackend):
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         self.client = openai.AsyncOpenAI(api_key=api_key)
 
-    def reset(self):
-        self.history.reset()
-
     @overload
     @override
     async def _chat_completion_request(
