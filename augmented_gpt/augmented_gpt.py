@@ -51,7 +51,7 @@ class AugmentedGPT:
         description: Optional[str] = None,
         debug: bool = False,
     ):
-        from .llm import LLMBackend, ModelOptions
+        from .llm import LLMBackend, ModelOptions, Model
         from .llm.openai import OpenAIBackend
         from .llm.mistral import MistralBackend
 
