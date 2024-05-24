@@ -3,6 +3,8 @@ import inspect
 from inspect import Parameter
 import json
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+
+from augmented_gpt.augmented_gpt import ToolCallEvent
 from . import LOGGER, MSG_LOGGER
 
 from .message import JSON, FunctionCall, Message, Role, ToolCall
@@ -207,30 +209,31 @@ class ToolRegistry:
 
     async def call_function(
         self, function_call: FunctionCall, tool_id: Optional[str], context: Any
-    ) -> Message:
+    ) -> tuple[Message, Any]:
         func_name = function_call.name
         arguments = function_call.arguments
         result = await self.call_function_raw(
             func_name, arguments, tool_id, context=context
         )
+        raw_result = result
         if not isinstance(result, str):
             result = json.dumps(result)
         if tool_id is not None:
             result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content=result)
         else:
             result_msg = Message(role=Role.FUNCTION, name=func_name, content=result)
-        return result_msg
+        return result_msg, raw_result
 
-    async def call_tools(
-        self, tool_calls: Sequence[ToolCall], context: Any
-    ) -> list[Message]:
-        results: list[Message] = []
+    async def call_tools(self, tool_calls: Sequence[ToolCall], context: Any):
         for t in tool_calls:
             assert t.type == "function"
-            result = await self.call_function(t.function, tool_id=t.id, context=context)
-            results.append(result)
+            yield ToolCallEvent(id=t.id, function=t.function)
+            result, raw_result = await self.call_function(
+                t.function, tool_id=t.id, context=context
+            )
+            yield ToolCallEvent(id=t.id, function=t.function, result=raw_result)
+            yield result
             await self.on_new_chat_message(result)
-        return results
 
     async def on_new_chat_message(self, msg: Message):
         for p in self.__plugins.values():

@@ -18,7 +18,14 @@ from .message import (
 )
 from .plugins import Plugin
 from . import plugins
-from .augmented_gpt import AugmentedGPT, ChatCompletion, ServerError
+from .augmented_gpt import (
+    AugmentedGPT,
+    ChatCompletion,
+    ServerError,
+    ChatCompletionEvent,
+    UserConsentEvent,
+    ToolCallEvent,
+)
 from .llm import ModelOptions, Model
 from . import utils
 from .tools import ToolInfo, ToolRegistry, Tools
@@ -35,6 +42,9 @@ __all__ = [
     "plugins",
     "AugmentedGPT",
     "ChatCompletion",
+    "ChatCompletionEvent",
+    "UserConsentEvent",
+    "ToolCallEvent",
     "ModelOptions",
     "Model",
     "ServerError",

@@ -130,6 +130,8 @@ class Message:
     files: Optional[Sequence[Path | str]] = None
     """The files that will be sent with the message. Only valid for user messages with assistant api."""
 
+    type: Literal["message"] = "message"
+
     def to_json(self) -> JSON:
         data: Mapping[str, Any] = {
             "role": self.role,
@@ -146,6 +148,8 @@ class ServerError(RuntimeError):
 
 
 class MessageStream:
+    type: Literal["message.stream"] = "message.stream"
+
     def __aiter__(self) -> AsyncIterator[str]:
         raise NotImplementedError()
 

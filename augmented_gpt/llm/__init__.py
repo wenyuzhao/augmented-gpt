@@ -2,8 +2,13 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, List, Literal, Optional, overload
 
 from ..tools import ToolRegistry
-from ..message import Message, MessageStream
-from ..augmented_gpt import ChatCompletion
+from ..message import FunctionCall, Message, MessageStream
+from ..augmented_gpt import (
+    ChatCompletion,
+    ChatCompletionEvent,
+    UserConsentEvent,
+    ToolCallEvent,
+)
 from ..history import History
 
 from dataclasses import dataclass
@@ -121,12 +126,12 @@ class LLMBackend:
         messages: list[Message],
         stream: Literal[False] = False,
         context: Any = None,
-    ) -> AsyncGenerator[Message, None]: ...
+    ) -> AsyncGenerator[ChatCompletionEvent[Message], None]: ...
 
     @overload
     async def __chat_completion(
         self, messages: list[Message], stream: Literal[True], context: Any = None
-    ) -> AsyncGenerator[MessageStream, None]: ...
+    ) -> AsyncGenerator[ChatCompletionEvent[MessageStream], None]: ...
 
     async def __chat_completion(
         self, messages: list[Message], stream: bool = False, context: Any = None
@@ -153,8 +158,12 @@ class LLMBackend:
         # Run tools and submit results until convergence
         while len(message.tool_calls) > 0:
             # Run tools
-            results = await self.tools.call_tools(message.tool_calls, context=context)
-            history.extend(results)
+            async for event in self.tools.call_tools(
+                message.tool_calls, context=context
+            ):
+                yield event
+                if isinstance(event, Message):
+                    history.append(event)
             # Submit results
             message: Message
             if stream:
@@ -168,5 +177,10 @@ class LLMBackend:
             history.append(message)
             MSG_LOGGER.info(f"{message}")
             await self._on_new_chat_message(message)
+        if _unreachable:
+            yield UserConsentEvent(id="", message="")
         for h in history[old_history_length:]:
             self.history.add(h)
+
+
+_unreachable = False

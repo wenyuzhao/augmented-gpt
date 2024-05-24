@@ -1,6 +1,6 @@
 from pathlib import Path
 from augmented_gpt import LOGGER
-from augmented_gpt.augmented_gpt import ToolRegistry
+from augmented_gpt.tools import ToolRegistry
 from aiohttp import web
 from urllib.parse import urlparse
 import uuid, jinja2

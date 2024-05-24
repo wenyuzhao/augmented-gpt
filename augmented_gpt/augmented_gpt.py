@@ -11,25 +11,44 @@ from typing import (
 )
 
 from .message import *
-from .tools import ToolInfo, ToolRegistry, Tools
 from .history import History
 import os
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .tools import ToolInfo, ToolRegistry, Tools
     from .plugins import Plugin
     from .llm import Model, ModelOptions
 
 M = TypeVar("M", Message, MessageStream)
 
 
+@dataclass
+class ToolCallEvent:
+    id: str
+    function: FunctionCall
+    result: Any | None = None
+    type: Literal["tool"] = "tool"
+
+
+@dataclass
+class UserConsentEvent:
+    id: str
+    message: str
+    type: Literal["consent"] = "consent"
+
+
+ChatCompletionEvent = ToolCallEvent | UserConsentEvent | M
+
+
+@dataclass
 class ChatCompletion(Generic[M]):
-    def __init__(self, agen: AsyncGenerator[M, None]) -> None:
+    def __init__(self, agen: AsyncGenerator[ChatCompletionEvent[M], None]) -> None:
         super().__init__()
         self.__agen = agen
 
-    async def __anext__(self) -> M:
+    async def __anext__(self) -> ChatCompletionEvent[M]:
         return await self.__agen.__anext__()
 
     def __aiter__(self):
@@ -43,7 +62,7 @@ class AugmentedGPT:
     def __init__(
         self,
         model: Union["Model", str] = "gpt-4-turbo",
-        tools: Optional[Tools] = None,
+        tools: Optional["Tools"] = None,
         options: Optional["ModelOptions"] = None,
         api_key: Optional[str] = None,
         instructions: Optional[str] = None,
@@ -54,6 +73,7 @@ class AugmentedGPT:
         from .llm import LLMBackend, ModelOptions, Model
         from .llm.openai import OpenAIBackend
         from .llm.mistral import MistralBackend
+        from .tools import ToolRegistry
 
         if isinstance(model, str):
             model = Model(model)
@@ -130,5 +150,5 @@ class AugmentedGPT:
     def get_model(self) -> "Model":
         return self.__backend.model
 
-    def get_tools(self) -> ToolRegistry:
+    def get_tools(self) -> "ToolRegistry":
         return self.__backend.tools
