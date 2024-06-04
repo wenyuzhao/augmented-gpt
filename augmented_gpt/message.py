@@ -66,6 +66,14 @@ class ToolCall:
     function: FunctionCall
     type: Literal["function"]
 
+    @staticmethod
+    def from_dict(d: Mapping[str, Any]) -> "ToolCall":
+        return ToolCall(
+            id=d["id"],
+            function=FunctionCall.from_dict(d["function"]),
+            type=d["type"],
+        )
+
 
 class Role(StrEnum):
     SYSTEM = "system"
@@ -140,6 +148,19 @@ class Message:
         if self.name is not None:
             data["name"] = self.name
         return data
+
+    @staticmethod
+    def from_dict(data: Any) -> "Message":
+        data = cast(Mapping[str, Any], data)
+        return Message(
+            role=Role.from_str(data["role"]),
+            content=data["content"],
+            name=data.get("name"),
+            tool_calls=[ToolCall.from_dict(tc) for tc in data.get("tool_calls", [])],
+            tool_call_id=data.get("tool_call_id"),
+            files=data.get("files"),
+            type="message",
+        )
 
 
 @dataclass
