@@ -72,22 +72,12 @@ class AugmentedGPT:
     ):
         from .llm import LLMBackend, ModelOptions, Model
         from .llm.openai import OpenAIBackend
-        from .llm.mistral import MistralBackend
         from .tools import ToolRegistry
 
         if isinstance(model, str):
             model = Model(model)
         if model.api == "openai":
             self.__backend: LLMBackend = OpenAIBackend(
-                model=model,
-                tools=ToolRegistry(self, tools),
-                options=options or ModelOptions(),
-                instructions=instructions,
-                debug=debug,
-                api_key=api_key,
-            )
-        elif model.api == "mistral":
-            self.__backend: LLMBackend = MistralBackend(
                 model=model,
                 tools=ToolRegistry(self, tools),
                 options=options or ModelOptions(),

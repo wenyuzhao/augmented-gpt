@@ -18,7 +18,7 @@ from .. import MSG_LOGGER
 @dataclass
 class Model:
     model: str
-    api: Literal["openai", "mistral"] = "openai"
+    api: Literal["openai"] = "openai"
 
 
 @dataclass

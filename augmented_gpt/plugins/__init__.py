@@ -27,9 +27,8 @@ class TimestampPlugin(Plugin):
         return datetime.datetime.now().isoformat()
 
 
-from .memory import *
 from .calc import *
 
 
 def all_plugins():
-    return [TimestampPlugin(), MemoryPlugin(), CalculatorPlugin()]
+    return [TimestampPlugin(), CalculatorPlugin()]
