@@ -12,7 +12,6 @@ from typing import (
 
 from .message import *
 from .history import History
-import os
 
 from typing import TYPE_CHECKING
 
@@ -95,9 +94,11 @@ class AugmentedGPT:
     def reset(self):
         self.__backend.reset()
 
-    # @property
-    # def openai_client(self):
-    #     return self.__backend.client
+    def set_raw_history(self, history: Any):
+        self.__backend.get_history().set_raw_messages(history)
+
+    def get_raw_history(self) -> Any:
+        return self.__backend.get_history().get_raw_messages()
 
     def get_plugin(self, name: str) -> "Plugin":
         return self.__backend.tools.get_plugin(name)

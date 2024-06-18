@@ -74,6 +74,13 @@ class ToolCall:
             type=d["type"],
         )
 
+    def to_dict(self) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "function": self.function.to_dict(),
+            "type": self.type,
+        }
+
 
 class Role(StrEnum):
     SYSTEM = "system"
@@ -147,6 +154,20 @@ class Message:
         }
         if self.name is not None:
             data["name"] = self.name
+        return data
+
+    def to_dict(self) -> Mapping[str, Any]:
+        data: Mapping[str, Any] = {
+            "role": self.role.value,
+            "content": self.content,
+            "tool_calls": [tc.to_dict() for tc in self.tool_calls],
+        }
+        if self.name is not None:
+            data["name"] = self.name
+        if self.tool_call_id is not None:
+            data["tool_call_id"] = self.tool_call_id
+        if self.files is not None:
+            data["files"] = [str(f) for f in self.files]
         return data
 
     @staticmethod

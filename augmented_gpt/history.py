@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from .message import Message, Role
 
 
@@ -19,3 +19,9 @@ class History:
     def add(self, message: Message):
         # TODO: auto trim history
         self.__messages.append(message)
+
+    def get_raw_messages(self) -> Any:
+        return [m.to_dict() for m in self.__messages]
+
+    def set_raw_messages(self, data: Any):
+        self.__messages = [Message.from_dict(m) for m in data]
