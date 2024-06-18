@@ -159,7 +159,11 @@ class Message:
     def to_dict(self) -> Mapping[str, Any]:
         data: Mapping[str, Any] = {
             "role": self.role.value,
-            "content": self.content,
+            "content": (
+                self.content
+                if isinstance(self.content, str) or self.content is None
+                else [c.to_openai_content_part() for c in self.content]
+            ),
             "tool_calls": [tc.to_dict() for tc in self.tool_calls],
         }
         if self.name is not None:
@@ -175,7 +179,18 @@ class Message:
         data = cast(Mapping[str, Any], data)
         return Message(
             role=Role.from_str(data["role"]),
-            content=data["content"],
+            content=(
+                data["content"]
+                if isinstance(data["content"], str) or data["content"] is None
+                else [
+                    (
+                        ContentPartText(c["text"])
+                        if c["type"] == "text"
+                        else ContentPartImage(c["image_url"]["url"])
+                    )
+                    for c in data["content"]
+                ]
+            ),
             name=data.get("name"),
             tool_calls=[ToolCall.from_dict(tc) for tc in data.get("tool_calls", [])],
             tool_call_id=data.get("tool_call_id"),
