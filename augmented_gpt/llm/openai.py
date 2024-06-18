@@ -39,11 +39,7 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCall,
 )
 import openai
-from openai.types.chat import (
-    ChatCompletionChunk,
-    ChatCompletionContentPartTextParam,
-    ChatCompletionContentPartImageParam,
-)
+from openai.types.chat import ChatCompletionChunk
 
 
 class OpenAIBackend(LLMBackend):
