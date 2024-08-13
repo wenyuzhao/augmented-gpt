@@ -70,31 +70,21 @@ class LLMBackend:
 
     @overload
     def chat_completion(
-        self,
-        messages: List[Message],
-        stream: Literal[False] = False,
-        context: Any = None,
+        self, messages: List[Message], stream: Literal[False] = False
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True], context: Any = None
+        self, messages: List[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self,
-        messages: list[Message],
-        stream: bool = False,
-        context: Any = None,
+        self, messages: list[Message], stream: bool = False
     ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
         if stream:
-            return ChatCompletion(
-                self.__chat_completion(messages, stream=True, context=context)
-            )
+            return ChatCompletion(self.__chat_completion(messages, stream=True))
         else:
-            return ChatCompletion(
-                self.__chat_completion(messages, stream=False, context=context)
-            )
+            return ChatCompletion(self.__chat_completion(messages, stream=False))
 
     async def _on_new_chat_message(self, msg: Message):
         await self.tools.on_new_chat_message(msg)
@@ -116,20 +106,15 @@ class LLMBackend:
 
     @overload
     async def __chat_completion(
-        self,
-        messages: list[Message],
-        stream: Literal[False] = False,
-        context: Any = None,
+        self, messages: list[Message], stream: Literal[False] = False
     ) -> AsyncGenerator[ChatCompletionEvent[Message], None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True], context: Any = None
+        self, messages: list[Message], stream: Literal[True]
     ) -> AsyncGenerator[ChatCompletionEvent[MessageStream], None]: ...
 
-    async def __chat_completion(
-        self, messages: list[Message], stream: bool = False, context: Any = None
-    ):
+    async def __chat_completion(self, messages: list[Message], stream: bool = False):
         history = [h for h in self.history.get()]
         old_history_length = len(history)
         history.extend(messages)
@@ -152,9 +137,7 @@ class LLMBackend:
         # Run tools and submit results until convergence
         while len(message.tool_calls) > 0:
             # Run tools
-            async for event in self.tools.call_tools(
-                message.tool_calls, context=context
-            ):
+            async for event in self.tools.call_tools(message.tool_calls):
                 yield event
                 if isinstance(event, Message):
                     history.append(event)
