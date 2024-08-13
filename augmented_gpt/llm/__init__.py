@@ -75,7 +75,7 @@ class LLMBackend:
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: List[Message], stream: Literal[True] = True
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
@@ -111,7 +111,7 @@ class LLMBackend:
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True] = True
     ) -> AsyncGenerator[ChatCompletionEvent[MessageStream], None]: ...
 
     async def __chat_completion(self, messages: list[Message], stream: bool = False):
@@ -138,9 +138,10 @@ class LLMBackend:
         while len(message.tool_calls) > 0:
             # Run tools
             async for event in self.tools.call_tools(message.tool_calls):
-                yield event
                 if isinstance(event, Message):
                     history.append(event)
+                else:
+                    yield event
             # Submit results
             message: Message
             if stream:

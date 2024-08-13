@@ -22,15 +22,14 @@ def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[get_current_weather])
+    gpt = AugmentedGPT(model="openai/gpt-4o-mini", tools=[get_current_weather])
     response = gpt.chat_completion(
-        [
-            Message(role=Role.USER, content="What is the weather like in boston?"),
-        ],
+        [Message(role=Role.USER, content="What is the weather like in boston?")],
         stream=True,
     )
     all_assistant_content = ""
-    async for stream in response:
+    async for stream in response.messages():
+        print("stream: ", stream)
         content = ""
         async for delta in stream:
             assert delta is None or isinstance(delta, str)

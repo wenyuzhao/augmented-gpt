@@ -151,22 +151,16 @@ async def vision(image: str | Path, prompt: str, api_key: str | None = None) -> 
             image_url = (
                 f"data:image/{ext};base64,{base64.b64encode(f.read()).decode('utf-8')}"
             )
-    gpt = AugmentedGPT(
-        model="gpt-4-vision-preview",
-        api_key=api_key or os.environ.get("OPENAI_API_KEY"),
-    )
+    gpt = AugmentedGPT(model="gpt-4o-mini", api_key=api_key)
     response = gpt.chat_completion(
         [
             Message(
                 role=Role.USER,
-                content=[
-                    ContentPartText(prompt),
-                    ContentPartImage(image_url),
-                ],
+                content=[ContentPartText(prompt), ContentPartImage(image_url)],
             ),
         ],
     )
-    async for msg in response:
+    async for msg in response.messages():
         result = msg.content
         assert isinstance(result, str)
         return result

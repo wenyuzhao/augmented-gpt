@@ -24,14 +24,12 @@ async def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(model="gpt-3.5-turbo", tools=[get_current_weather])
+    gpt = AugmentedGPT(model="openai/gpt-4o-mini", tools=[get_current_weather])
     response = gpt.chat_completion(
-        [
-            Message(role=Role.USER, content="What is the weather like in boston?"),
-        ]
+        [Message(role=Role.USER, content="What is the weather like in boston?")]
     )
     all_assistant_content = ""
-    async for msg in response:
+    async for msg in response.messages():
         if msg.role == Role.ASSISTANT:
             assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""

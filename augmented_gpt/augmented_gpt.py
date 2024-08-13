@@ -53,6 +53,11 @@ class ChatCompletion(Generic[M]):
     def __aiter__(self):
         return self
 
+    async def messages(self) -> AsyncGenerator[M, None]:
+        async for event in self:
+            if isinstance(event, Message) or isinstance(event, MessageStream):
+                yield event
+
 
 class AugmentedGPT:
     def support_tools(self) -> bool:
@@ -100,14 +105,12 @@ class AugmentedGPT:
 
     @overload
     def chat_completion(
-        self,
-        messages: List[Message],
-        stream: Literal[False] = False,
+        self, messages: List[Message], stream: Literal[False] = False
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: List[Message], stream: Literal[True] = True
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(

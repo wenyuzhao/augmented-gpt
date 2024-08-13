@@ -26,7 +26,7 @@ from .augmented_gpt import (
     UserConsentEvent,
     ToolCallEvent,
 )
-from .llm import ModelOptions, Model
+from .llm import ModelOptions
 from . import utils
 from .tools import ToolInfo, ToolRegistry, Tools
 
@@ -46,7 +46,6 @@ __all__ = [
     "UserConsentEvent",
     "ToolCallEvent",
     "ModelOptions",
-    "Model",
     "ServerError",
     "ToolCall",
     "FunctionCall",

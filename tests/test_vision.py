@@ -24,6 +24,8 @@ async def test_vision():
     )
     all_assistant_content = ""
     async for msg in response:
+        if not isinstance(msg, Message):
+            continue
         if msg.role == Role.ASSISTANT:
             assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""
