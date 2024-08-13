@@ -42,7 +42,7 @@ import openai
 from openai.types.chat import ChatCompletionChunk
 
 
-class OpenAIBackend(LLMBackend):
+class OpenRouterBackend(LLMBackend):
     def __init__(
         self,
         model: str,
@@ -53,10 +53,13 @@ class OpenAIBackend(LLMBackend):
         api_key: str | None = None,
     ) -> None:
         super().__init__(model, tools, options, instructions, debug)
-        api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
-        self.client = openai.AsyncOpenAI(api_key=api_key)
+            raise ValueError("OPENROUTER_API_KEY environment variable is not set")
+        self.client = openai.AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+        )
 
     @overload
     @override

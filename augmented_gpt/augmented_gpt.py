@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .tools import ToolInfo, ToolRegistry, Tools
     from .plugins import Plugin
-    from .llm import Model, ModelOptions
+    from .llm import ModelOptions
 
 M = TypeVar("M", Message, MessageStream)
 
@@ -60,7 +60,7 @@ class AugmentedGPT:
 
     def __init__(
         self,
-        model: Union["Model", str] = "gpt-4-turbo",
+        model: str = "openai/gpt-4o",
         tools: Optional["Tools"] = None,
         options: Optional["ModelOptions"] = None,
         api_key: Optional[str] = None,
@@ -69,23 +69,18 @@ class AugmentedGPT:
         description: Optional[str] = None,
         debug: bool = False,
     ):
-        from .llm import LLMBackend, ModelOptions, Model
-        from .llm.openai import OpenAIBackend
+        from .llm import LLMBackend, ModelOptions
+        from .llm.openrouter import OpenRouterBackend
         from .tools import ToolRegistry
 
-        if isinstance(model, str):
-            model = Model(model)
-        if model.api == "openai":
-            self.__backend: LLMBackend = OpenAIBackend(
-                model=model,
-                tools=ToolRegistry(self, tools),
-                options=options or ModelOptions(),
-                instructions=instructions,
-                debug=debug,
-                api_key=api_key,
-            )
-        else:
-            raise NotImplemented
+        self.__backend: LLMBackend = OpenRouterBackend(
+            model=model,
+            tools=ToolRegistry(self, tools),
+            options=options or ModelOptions(),
+            instructions=instructions,
+            debug=debug,
+            api_key=api_key,
+        )
         self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
         self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
         self.name = name
@@ -135,11 +130,14 @@ class AugmentedGPT:
                 context=context,
             )
 
-    def get_history(self) -> History:
+    @property
+    def history(self) -> History:
         return self.__backend.get_history()
 
-    def get_model(self) -> "Model":
+    @property
+    def model(self) -> str:
         return self.__backend.model
 
-    def get_tools(self) -> "ToolRegistry":
+    @property
+    def tools(self) -> "ToolRegistry":
         return self.__backend.tools

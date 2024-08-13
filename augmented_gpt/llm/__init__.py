@@ -16,12 +16,6 @@ from .. import MSG_LOGGER
 
 
 @dataclass
-class Model:
-    model: str
-    api: Literal["openai"] = "openai"
-
-
-@dataclass
 class ModelOptions:
     # frequency_penalty: Optional[float] = None
     # logit_bias: Optional[dict[str, int]] = None
@@ -54,7 +48,7 @@ class LLMBackend:
 
     def __init__(
         self,
-        model: Model,
+        model: str,
         tools: ToolRegistry,
         options: ModelOptions,
         instructions: Optional[str],
