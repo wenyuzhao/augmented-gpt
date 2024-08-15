@@ -24,6 +24,7 @@ class ModelOptions:
     # presence_penalty: Optional[float] = None
     # stop: Optional[str] | List[str] = None
     temperature: Optional[float] = None
+    repetition_penalty: Optional[float] = None
     # top_p: Optional[float] = None
     # timeout: Optional[float] = None
 
@@ -36,6 +37,7 @@ class ModelOptions:
             # "presence_penalty": self.presence_penalty,
             # "stop": self.stop,
             "temperature": self.temperature,
+            "repetition_penalty": self.repetition_penalty,
             # "top_p": self.top_p,
             # "timeout": self.timeout,
         }
