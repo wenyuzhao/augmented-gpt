@@ -210,27 +210,28 @@ class ToolRegistry:
 
     async def call_function(
         self, function_call: FunctionCall, tool_id: Optional[str]
-    ) -> tuple[Message, Any]:
+    ) -> Any:
         func_name = function_call.name
         arguments = function_call.arguments
         result = await self.call_function_raw(func_name, arguments, tool_id)
-        raw_result = result
-        if not isinstance(result, str):
-            result = json.dumps(result)
-        if tool_id is not None:
-            result_msg = Message(role=Role.TOOL, tool_call_id=tool_id, content=result)
-        else:
-            result_msg = Message(role=Role.FUNCTION, name=func_name, content=result)
-        return result_msg, raw_result
+        return result
 
     async def call_tools(self, tool_calls: Sequence[ToolCall]):
         for t in tool_calls:
             assert t.type == "function"
             yield ToolCallEvent(id=t.id, function=t.function)
-            result, raw_result = await self.call_function(t.function, tool_id=t.id)
+            raw_result = await self.call_function(t.function, tool_id=t.id)
             yield ToolCallEvent(id=t.id, function=t.function, result=raw_result)
-            yield result
-            await self.on_new_chat_message(result)
+            if not isinstance(raw_result, str):
+                result = json.dumps(raw_result)
+            else:
+                result = raw_result
+            if t.id is not None:
+                result_msg = Message(role=Role.TOOL, tool_call_id=t.id, content=result)
+            else:
+                result_msg = Message(role=Role.FUNCTION, name=t.id, content=result)
+            yield result_msg
+            await self.on_new_chat_message(result_msg)
 
     async def on_new_chat_message(self, msg: Message):
         for p in self.__plugins.values():
