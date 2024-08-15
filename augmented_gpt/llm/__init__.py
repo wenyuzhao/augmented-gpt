@@ -17,27 +17,27 @@ from .. import MSG_LOGGER
 
 @dataclass
 class ModelOptions:
-    # frequency_penalty: Optional[float] = None
+    frequency_penalty: Optional[float] = None
     # logit_bias: Optional[dict[str, int]] = None
     # max_tokens: Optional[int] = None
     # n: Optional[int] = None
-    # presence_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
     # stop: Optional[str] | List[str] = None
     temperature: Optional[float] = None
-    repetition_penalty: Optional[float] = None
+    # repetition_penalty: Optional[float] = None
     # top_p: Optional[float] = None
     # timeout: Optional[float] = None
 
     def as_kwargs(self) -> dict[str, Any]:
         args = {
-            # "frequency_penalty": self.frequency_penalty,
+            "frequency_penalty": self.frequency_penalty,
             # "logit_bias": self.logit_bias,
             # "max_tokens": self.max_tokens,
             # "n": self.n,
-            # "presence_penalty": self.presence_penalty,
+            "presence_penalty": self.presence_penalty,
             # "stop": self.stop,
             "temperature": self.temperature,
-            "repetition_penalty": self.repetition_penalty,
+            # "repetition_penalty": self.repetition_penalty,
             # "top_p": self.top_p,
             # "timeout": self.timeout,
         }
