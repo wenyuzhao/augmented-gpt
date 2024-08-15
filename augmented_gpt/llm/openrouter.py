@@ -206,7 +206,7 @@ class ChatMessageStream(MessageStream):
 
     def __merge_tool_calls(self, delta: list[ChoiceDeltaToolCall]):
         for d in delta:
-            if d.index < len(self.__tool_calls):
+            if d.index is not None and d.index < len(self.__tool_calls):
                 t = self.__tool_calls[d.index]
                 assert t.id is not None
                 t.id += d.id or ""
@@ -217,7 +217,7 @@ class ChatMessageStream(MessageStream):
                     d.function.arguments or ""
                 )
             else:
-                assert d.index == len(self.__tool_calls)
+                # assert d.index == len(self.__tool_calls)
                 assert d.function is not None
                 self.__tool_calls.append(d)
 
