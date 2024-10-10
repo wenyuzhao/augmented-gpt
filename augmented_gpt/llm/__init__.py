@@ -77,7 +77,7 @@ class LLMBackend:
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True] = True
+        self, messages: List[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
