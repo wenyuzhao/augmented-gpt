@@ -14,6 +14,7 @@ from typing import (
     Sequence,
     Tuple,
     TYPE_CHECKING,
+    Union,
     get_args,
     get_origin,
 )
@@ -82,12 +83,17 @@ class ToolRegistry:
                 t = str  # the default type is string
             # Get parameter optionality
             param_t_is_opt = False
-            if get_origin(t) == Optional:
-                param_t, param_t_is_opt = get_args(t)[0], True
+            is_optional = lambda t: (
+                get_origin(t) == Union
+                and len(get_args(t)) == 2
+                and get_args(t)[-1] == type(None)
+            )
+            if is_optional(t):
+                t, param_t_is_opt = get_args(t)[0], True
             param_default_is_empty = param.default == inspect.Parameter.empty
             required = not param_t_is_opt and param_default_is_empty
             # Get parameter type
-            assert get_origin(t) != Optional
+            assert not is_optional(t), "Optional types are not supported"
             match t:
                 # string type
                 case x if x == str:
@@ -96,14 +102,6 @@ class ToolRegistry:
                 case x if x == int:
                     prop["type"] = "integer"
                 # string enum
-                case x if issubclass(x, StrEnum) or issubclass(x, Enum):
-                    prop["type"] = "string"
-                    for arg in x:
-                        if not isinstance(arg, str):
-                            raise ValueError(
-                                f"{fname}.{pname}: Enum members must be strings only"
-                            )
-                    prop["enum"] = [x.value for x in x]
                 case x if get_origin(x) == Literal:
                     prop["type"] = "string"
                     args = get_args(x)
@@ -113,6 +111,14 @@ class ToolRegistry:
                                 f"{fname}.{pname}: Literal members must be strings only"
                             )
                     prop["enum"] = [x for x in args]
+                case x if issubclass(x, StrEnum) or issubclass(x, Enum):
+                    prop["type"] = "string"
+                    for arg in x:
+                        if not isinstance(arg, str):
+                            raise ValueError(
+                                f"{fname}.{pname}: Enum members must be strings only"
+                            )
+                    prop["enum"] = [x.value for x in x]
                 case _other:
                     assert (
                         False
@@ -214,15 +220,13 @@ class ToolRegistry:
         for p in inspect.signature(callable).parameters.values():
             match p.kind:
                 case Parameter.POSITIONAL_ONLY:
-                    p_args.append(args[p.name] if p.name in args else p.default.default)
+                    p_args.append(args[p.name] if p.name in args else p.default)
                 case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY:
                     if p.name == "__context__" and p.name not in args:
                         # kw_args[p.name] = context
                         raise ValueError(f"__context__ is not supported")
                     else:
-                        kw_args[p.name] = (
-                            args[p.name] if p.name in args else p.default.default
-                        )
+                        kw_args[p.name] = args[p.name] if p.name in args else p.default
                 case other:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args

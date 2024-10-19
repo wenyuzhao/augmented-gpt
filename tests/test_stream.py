@@ -1,5 +1,5 @@
-from agentia import AugmentedGPT, Message, Role, param, tool
-from typing import Optional
+from agentia import Agent, Message, tool
+from typing import Literal, Annotated
 import pytest
 import dotenv
 
@@ -8,8 +8,8 @@ dotenv.load_dotenv()
 
 @tool
 def get_current_weather(
-    location: str = param("The city and state, e.g. San Francisco, CA"),
-    unit: Optional[str] = param(enum=["celsius", "fahrenheit"], default="fahrenheit"),
+    location: Annotated[str, "The city and state, e.g. San Francisco, CA"],
+    unit: Literal["celsius", "fahrenheit"] | None = "fahrenheit",
 ):
     """Get the current weather in a given location"""
     return {
@@ -22,9 +22,9 @@ def get_current_weather(
 
 @pytest.mark.asyncio
 async def test_function_call():
-    gpt = AugmentedGPT(model="openai/gpt-4o-mini", tools=[get_current_weather])
+    gpt = Agent(model="openai/gpt-4o-mini", tools=[get_current_weather])
     response = gpt.chat_completion(
-        [Message(role=Role.USER, content="What is the weather like in boston?")],
+        [Message(role="user", content="What is the weather like in boston?")],
         stream=True,
     )
     all_assistant_content = ""
@@ -36,7 +36,7 @@ async def test_function_call():
             content += delta
             print(" - ", delta)
         msg = await stream.wait_for_completion()
-        if msg.role == Role.ASSISTANT:
+        if msg.role == "assistant":
             all_assistant_content += content
         print(msg)
     assert "72" in all_assistant_content

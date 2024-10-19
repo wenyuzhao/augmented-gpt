@@ -1,6 +1,5 @@
-from agentia import AugmentedGPT, Message, Role, param, tool
-from agentia.plugins import Plugin
-from typing import Optional
+from agentia import Agent, Message, tool, Plugin
+from typing import Literal, Annotated
 import pytest
 import dotenv
 
@@ -11,10 +10,8 @@ class FakeWeatherPlugin(Plugin):
     @tool
     def get_current_weather(
         self,
-        location: str = param("The city and state, e.g. San Francisco, CA"),
-        unit: Optional[str] = param(
-            enum=["celsius", "fahrenheit"], default="fahrenheit"
-        ),
+        location: Annotated[str, "The city and state, e.g. San Francisco, CA"],
+        unit: Literal["celsius", "fahrenheit"] | None = "fahrenheit",
     ):
         """Get the current weather in a given location"""
         return {
@@ -30,13 +27,13 @@ async def test_weather_and_memory_plugin():
     file = "_test-data.csv"
     with open(file, "w+") as f:
         f.write("")
-    gpt = AugmentedGPT(model="openai/gpt-4o-mini", tools=[FakeWeatherPlugin()])
+    gpt = Agent(model="openai/gpt-4o-mini", tools=[FakeWeatherPlugin()])
     response = gpt.chat_completion(
-        [Message(role=Role.USER, content="What is the weather like in boston?")]
+        [Message(role="user", content="What is the weather like in boston?")]
     )
     all_assistant_content: str = ""
     async for msg in response.messages():
-        if msg.role == Role.ASSISTANT:
+        if msg.role == "assistant":
             assert msg.content is None or isinstance(msg.content, str)
             all_assistant_content += msg.content or ""
         print(msg)
