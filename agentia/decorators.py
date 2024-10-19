@@ -8,7 +8,7 @@ from typing import (
 )
 import inspect
 
-from augmented_gpt.message import JSON
+from agentia.message import JSON
 
 
 class _Param:
@@ -79,7 +79,7 @@ def tool(
                 params["required"].append(pname)
             params["properties"][pname] = prop
         # store gpt function metadata to the callable object
-        from augmented_gpt.tools import ToolInfo, TOOL_INFO_TAG
+        from agentia.tools import ToolInfo, TOOL_INFO_TAG
 
         setattr(
             callable,

@@ -1,4 +1,4 @@
-from augmented_gpt import utils
+from agentia import utils
 import pytest
 import dotenv
 

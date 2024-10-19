@@ -1,6 +1,6 @@
 from typing import Literal
-from augmented_gpt.augmented_gpt import AugmentedGPT
-from augmented_gpt.message import ContentPartImage, ContentPartText, Message, Role
+from agentia.augmented_gpt import AugmentedGPT
+from agentia.message import ContentPartImage, ContentPartText, Message, Role
 
 import openai
 from pathlib import Path

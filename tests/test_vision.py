@@ -1,5 +1,5 @@
-from augmented_gpt import AugmentedGPT, Message, Role, utils
-from augmented_gpt.message import ContentPartImage, ContentPartText
+from agentia import AugmentedGPT, Message, Role, utils
+from agentia.message import ContentPartImage, ContentPartText
 import pytest
 import dotenv
 

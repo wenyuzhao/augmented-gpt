@@ -2,7 +2,7 @@ from ..decorators import *
 from ..message import Message
 import datetime
 from typing import TYPE_CHECKING
-from augmented_gpt import tool
+from agentia import tool
 
 if TYPE_CHECKING:
     from ..augmented_gpt import AugmentedGPT

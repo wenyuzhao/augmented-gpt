@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "augmented_gpt"
+name = "agentia"
 version = "0.4.0"
 description = "ChatGPT API wrapper, argumented with functions"
 # documentation = "https://github.com/wenyuzhao/augmented-gpt"
@@ -7,7 +7,7 @@ authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/wenyuzhao/augmented-gpt"
-packages = [{ include = "augmented_gpt" }]
+packages = [{ include = "agentia" }]
 keywords = ["chatgpt", "gpt"]
 
 [tool.poetry.dependencies]

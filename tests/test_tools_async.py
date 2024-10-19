@@ -1,4 +1,4 @@
-from augmented_gpt import AugmentedGPT, Message, Role, param, tool
+from agentia import AugmentedGPT, Message, Role, param, tool
 from typing import Optional
 import pytest
 import asyncio

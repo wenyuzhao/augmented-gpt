@@ -4,7 +4,7 @@ from inspect import Parameter
 import json
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
-from augmented_gpt.augmented_gpt import ToolCallEvent
+from agentia.augmented_gpt import ToolCallEvent
 from . import LOGGER, MSG_LOGGER
 
 from .message import JSON, FunctionCall, Message, Role, ToolCall
