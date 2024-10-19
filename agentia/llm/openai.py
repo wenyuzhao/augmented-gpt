@@ -1,6 +1,6 @@
 import json
 import os
-from typing import AsyncIterator, Literal, Any, Optional, overload, override
+from typing import AsyncIterator, Literal, Any, overload, override
 
 from .. import MSG_LOGGER
 
@@ -9,7 +9,6 @@ from ..tools import ToolRegistry
 
 from ..message import (
     Message,
-    Role,
     MessageStream,
     ToolCall,
     FunctionCall,
@@ -20,7 +19,6 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
-    ChatCompletionFunctionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionAssistantMessageParam,
     ChatCompletionMessageToolCallParam,
@@ -48,7 +46,7 @@ class OpenAIBackend(LLMBackend):
         model: str,
         tools: ToolRegistry,
         options: ModelOptions,
-        instructions: Optional[str],
+        instructions: str | None,
         debug: bool,
         api_key: str | None = None,
     ) -> None:
@@ -180,7 +178,7 @@ class ChatMessageStream(MessageStream):
         self.__aiter = response.__aiter__()
         self.__message = Message(role="assistant")
         self.__tool_calls: list[ChoiceDeltaToolCall] = []
-        self.__final_message: Optional[Message] = None
+        self.__final_message: Message | None = None
 
     def __get_final_merged_tool_calls(self) -> list[ToolCall]:
         return [

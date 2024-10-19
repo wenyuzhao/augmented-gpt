@@ -1,6 +1,6 @@
 from typing import Literal
 from agentia.agent import Agent
-from agentia.message import ContentPartImage, ContentPartText, Message, Role
+from agentia.message import ContentPartImage, ContentPartText, Message
 
 import openai
 from pathlib import Path

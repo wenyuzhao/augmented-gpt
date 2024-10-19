@@ -1,9 +1,9 @@
-from typing import Any, Optional
+from typing import Any
 from .message import Message
 
 
 class History:
-    def __init__(self, instructions: Optional[str]) -> None:
+    def __init__(self, instructions: str | None) -> None:
         self.__instructions = instructions
         self.__messages: list[Message] = []
         self.reset()

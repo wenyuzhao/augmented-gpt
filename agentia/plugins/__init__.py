@@ -1,4 +1,4 @@
-from ..decorators import *
+from ..decorators import tool
 from ..message import Message
 import datetime
 from typing import TYPE_CHECKING

@@ -3,6 +3,7 @@ from typing import (
     Callable,
     AsyncGenerator,
     Literal,
+    Optional,
     TypeVar,
     Any,
     Generic,
@@ -68,15 +69,15 @@ class Agent:
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
         model: str = "openai/gpt-4o",
         tools: Optional["Tools"] = None,
         options: Optional["ModelOptions"] = None,
-        api_key: Optional[str] = None,
-        instructions: Optional[str] = None,
+        api_key: str | None = None,
+        instructions: str | None = None,
         debug: bool = False,
-        colleagues: Optional[list["Agent"]] = None,
+        colleagues: list["Agent"] | None = None,
     ):
         from .llm import LLMBackend, ModelOptions
         from .llm.openrouter import OpenRouterBackend
@@ -96,8 +97,8 @@ class Agent:
             debug=debug,
             api_key=api_key,
         )
-        self.on_tool_start: Optional[Callable[[str, ToolInfo, Any], Any]] = None
-        self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
+        self.on_tool_start: Callable[[str, ToolInfo, Any], Any] | None = None
+        self.on_tool_end: Callable[[str, ToolInfo, Any, Any], Any] | None = None
         self.name = name
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}

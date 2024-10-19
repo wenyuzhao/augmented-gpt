@@ -1,14 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, List, Literal, Optional, overload
+from typing import Any, AsyncGenerator, Literal, overload
 
 from ..tools import ToolRegistry
-from ..message import FunctionCall, Message, MessageStream
-from ..agent import (
-    ChatCompletion,
-    ChatCompletionEvent,
-    UserConsentEvent,
-    ToolCallEvent,
-)
+from ..message import Message, MessageStream
+from ..agent import ChatCompletion, ChatCompletionEvent, UserConsentEvent
 from ..history import History
 
 from dataclasses import dataclass
@@ -17,13 +12,13 @@ from .. import MSG_LOGGER
 
 @dataclass
 class ModelOptions:
-    frequency_penalty: Optional[float] = None
+    frequency_penalty: float | None = None
     # logit_bias: Optional[dict[str, int]] = None
     # max_tokens: Optional[int] = None
     # n: Optional[int] = None
-    presence_penalty: Optional[float] = None
+    presence_penalty: float | None = None
     # stop: Optional[str] | List[str] = None
-    temperature: Optional[float] = None
+    temperature: float | None = None
     # repetition_penalty: Optional[float] = None
     # top_p: Optional[float] = None
     # timeout: Optional[float] = None
@@ -53,7 +48,7 @@ class LLMBackend:
         model: str,
         tools: ToolRegistry,
         options: ModelOptions,
-        instructions: Optional[str],
+        instructions: str | None,
         debug: bool,
     ):
         self.debug = debug
@@ -72,12 +67,12 @@ class LLMBackend:
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[False] = False
+        self, messages: list[Message], stream: Literal[False] = False
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(

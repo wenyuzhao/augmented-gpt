@@ -1,9 +1,9 @@
 from typing import (
     Callable,
     Coroutine,
+    Optional,
     TypeVar,
     Any,
-    Optional,
     overload,
 )
 
@@ -21,14 +21,14 @@ def tool(name: Callable[..., R]) -> Callable[..., R]: ...
 def tool(
     name: str | None = None,
     display_name: str | None = None,
-    description: Optional[str] = None,
+    description: str | None = None,
 ) -> Callable[..., Callable[..., R]]: ...
 
 
 def tool(
     name: str | Callable[..., R] | None = None,
-    display_name: Optional[str] = None,
-    description: Optional[str] = None,
+    display_name: str | None = None,
+    description: str | None = None,
 ) -> Callable[..., R] | Callable[[Callable[..., R]], Callable[..., R]]:
 
     def __tool_impl(callable: Callable[..., R]) -> Callable[..., R]:

@@ -7,12 +7,8 @@ from typing import (
     Annotated,
     Any,
     Callable,
-    Dict,
-    List,
     Literal,
-    Optional,
     Sequence,
-    Tuple,
     TYPE_CHECKING,
     Union,
     get_args,
@@ -57,7 +53,7 @@ class ToolInfo:
 
 class ToolRegistry:
     def __init__(self, agent: "Agent", tools: Tools | None = None) -> None:
-        self.__functions: Dict[str, ToolInfo] = {}
+        self.__functions: dict[str, ToolInfo] = {}
         self.__plugins: Any = {}
         self.__agent = agent
         for t in tools or []:
@@ -90,7 +86,7 @@ class ToolRegistry:
             is_optional = lambda t: (
                 get_origin(t) == Union
                 and len(get_args(t)) == 2
-                and get_args(t)[-1] == type(None)
+                and type(None) in get_args(t)
             )
             if is_optional(t):
                 t, param_t_is_opt = get_args(t)[0], True
@@ -228,8 +224,8 @@ class ToolRegistry:
         }
 
     def __filter_args(self, callable: Callable[..., Any], args: Any):
-        p_args: List[Any] = []
-        kw_args: Dict[str, Any] = {}
+        p_args: list[Any] = []
+        kw_args: dict[str, Any] = {}
         for p in inspect.signature(callable).parameters.values():
             match p.kind:
                 case Parameter.POSITIONAL_ONLY:
@@ -303,7 +299,7 @@ class ToolRegistry:
         return result
 
     async def call_function(
-        self, function_call: FunctionCall, tool_id: Optional[str]
+        self, function_call: FunctionCall, tool_id: str | None
     ) -> Any:
         func_name = function_call.name
         arguments = function_call.arguments
