@@ -1,10 +1,24 @@
 from dataclasses import dataclass
+from enum import Enum, StrEnum
 import inspect
 from inspect import Parameter
 import json
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    TYPE_CHECKING,
+    get_args,
+    get_origin,
+)
 
-from agentia.augmented_gpt import ToolCallEvent
+from agentia.agent import ToolCallEvent
 from . import LOGGER, MSG_LOGGER
 
 from .message import JSON, FunctionCall, Message, Role, ToolCall
@@ -16,9 +30,11 @@ Tool = Plugin | Callable[..., Any]
 Tools = Sequence[Tool]
 
 if TYPE_CHECKING:
-    from .augmented_gpt import AugmentedGPT
+    from .agent import Agent
 
-TOOL_INFO_TAG = "gpt_function_call_info"
+NAME_TAG = "agentia_tool_name"
+DISPLAY_NAME_TAG = "agentia_tool_display_name"
+IS_TOOL_TAG = "agentia_tool_is_tool"
 
 
 @dataclass
@@ -27,20 +43,7 @@ class ToolInfo:
     display_name: str
     description: str
     parameters: dict[str, Any]
-
-    @staticmethod
-    def from_fn_opt(f: Callable[..., Any]) -> Optional["ToolInfo"]:
-        if not hasattr(f, TOOL_INFO_TAG):
-            return None
-        info = getattr(f, TOOL_INFO_TAG)
-        assert isinstance(info, ToolInfo) or info is None
-        return info
-
-    @staticmethod
-    def from_fn(f: Callable[..., Any]) -> "ToolInfo":
-        info = ToolInfo.from_fn_opt(f)
-        assert info is not None
-        return info
+    callable: Callable[..., Any]
 
     def to_json(self) -> JSON:
         return {
@@ -51,10 +54,10 @@ class ToolInfo:
 
 
 class ToolRegistry:
-    def __init__(self, client: "AugmentedGPT", tools: Tools | None = None) -> None:
-        self.__functions: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
+    def __init__(self, agent: "Agent", tools: Tools | None = None) -> None:
+        self.__functions: Dict[str, ToolInfo] = {}
         self.__plugins: Any = {}
-        self.__client = client
+        self.__agent = agent
         for t in tools or []:
             if inspect.isfunction(t):
                 self.__add_function(t)
@@ -64,28 +67,98 @@ class ToolRegistry:
         LOGGER.debug(f"Registered Tools: {names}")
 
     def __add_function(self, f: Callable[..., Any]):
-        func_info = ToolInfo.from_fn(f)
-        self.__functions[func_info.name] = (func_info.to_json(), f)
+        fname = getattr(f, NAME_TAG, f.__name__)
+        params: Any = {"type": "object", "properties": {}, "required": []}
+        for pname, param in inspect.signature(f).parameters.items():
+            # Skip self parameter
+            if pname == "self":
+                continue
+            # Get parameter info
+            prop = {}
+            # Get parameter type inside Annotated
+            t = param.annotation
+            t = t if get_origin(t) != Annotated else get_args(t)[0]
+            if t == inspect.Parameter.empty:
+                t = str  # the default type is string
+            # Get parameter optionality
+            param_t_is_opt = False
+            if get_origin(t) == Optional:
+                param_t, param_t_is_opt = get_args(t)[0], True
+            param_default_is_empty = param.default == inspect.Parameter.empty
+            required = not param_t_is_opt and param_default_is_empty
+            # Get parameter type
+            assert get_origin(t) != Optional
+            match t:
+                # string type
+                case x if x == str:
+                    prop["type"] = "string"
+                # integer type
+                case x if x == int:
+                    prop["type"] = "integer"
+                # string enum
+                case x if issubclass(x, StrEnum) or issubclass(x, Enum):
+                    prop["type"] = "string"
+                    for arg in x:
+                        if not isinstance(arg, str):
+                            raise ValueError(
+                                f"{fname}.{pname}: Enum members must be strings only"
+                            )
+                    prop["enum"] = [x.value for x in x]
+                case x if get_origin(x) == Literal:
+                    prop["type"] = "string"
+                    args = get_args(x)
+                    for arg in args:
+                        if not isinstance(arg, str):
+                            raise ValueError(
+                                f"{fname}.{pname}: Literal members must be strings only"
+                            )
+                    prop["enum"] = [x for x in args]
+                case _other:
+                    assert (
+                        False
+                    ), f"Invalid type annotation for parameter `{pname}` in function {fname}"
+            # Get parameter description
+            annotated_meta = (
+                get_args(param.annotation)[1]
+                if get_origin(param.annotation) == Annotated
+                else None
+            )
+            if desc := annotated_meta if isinstance(annotated_meta, str) else None:
+                prop["description"] = desc
+            # Add non-optional parameter to the required list
+            if required:
+                params["required"].append(pname)
+            # Add the parameter to the properties
+            params["properties"][pname] = prop
+
+        tool_info = ToolInfo(
+            name=fname,
+            display_name=getattr(f, DISPLAY_NAME_TAG, fname),
+            description=f.__doc__ or "",
+            parameters=params,
+            callable=f,
+        )
+        self.__functions[tool_info.name] = tool_info
+        return tool_info
 
     def __add_plugin(self, p: Plugin):
         # Add all functions from the plugin
         for _n, method in inspect.getmembers(p, predicate=inspect.ismethod):
-            func_info = ToolInfo.from_fn_opt(method)
-            if func_info is None:
+            if not getattr(method, IS_TOOL_TAG, False):
                 continue
             clsname = p.__class__.__name__
             if clsname.endswith("Plugin"):
                 clsname = clsname[:-6]
-            if not func_info.name.startswith(clsname + "__"):
-                func_info.name = clsname + "__" + func_info.name
-            self.__add_function(method)
+            tool_info = self.__add_function(method)
+            if not tool_info.name.startswith(clsname + "__"):
+                tool_info.name = clsname + "__" + tool_info.name
         # Add the plugin to the list of plugins
         clsname = p.__class__.__name__
         if clsname.endswith("Plugin"):
             clsname = clsname[:-6]
         self.__plugins[clsname] = p
         # Call the plugin's register method
-        p.register(self.__client)
+        p.register(self.__agent)
 
     def get_plugin(self, name: str) -> Plugin:
         return self.__plugins[name]
@@ -93,20 +166,19 @@ class ToolRegistry:
     def is_empty(self) -> bool:
         return len(self.__functions) == 0
 
-    def to_json(self, legacy: bool = False) -> list[JSON]:
-        functions = [x for (x, _) in self.__functions.values()]
-        if legacy:
-            return functions
+    def to_json(self) -> list[JSON]:
+        functions = [v.to_json() for (k, v) in self.__functions.items()]
         return [{"type": "function", "function": f} for f in functions]
 
     def to_gpts_json(self, url: str) -> Any:
         while url.endswith("/"):
             url = url[:-1]
+        functions: list[Any] = [v.to_json() for (k, v) in self.__functions.items()]
         return {
             "openapi": "3.1.0",
             "info": {
-                "title": self.__client.name or "",
-                "description": self.__client.description or "",
+                "title": self.__agent.name or "",
+                "description": self.__agent.description or "",
                 "version": "v1.0.0",
             },
             "servers": [{"url": url}],
@@ -128,7 +200,7 @@ class ToolRegistry:
                         "deprecated": False,
                     }
                 }
-                for (x, _) in self.__functions.values()
+                for x in functions
             },
             "components": {"schemas": {}},
         }
@@ -155,9 +227,10 @@ class ToolRegistry:
     async def __on_tool_start(
         self, func: Callable[..., Any], tool_id: str | None, args: JSON
     ):
-        info = ToolInfo.from_fn(func)
-        if self.__client.on_tool_start is not None and tool_id is not None:
-            await self.__client.on_tool_start(tool_id, info, args)
+        ...
+        # info = ToolInfo.from_fn(func)
+        # if self.__client.on_tool_start is not None and tool_id is not None:
+        #     await self.__client.on_tool_start(tool_id, info, args)
 
     async def __on_tool_end(
         self,
@@ -166,9 +239,10 @@ class ToolRegistry:
         args: JSON,
         result: JSON,
     ):
-        info = ToolInfo.from_fn(func)
-        if self.__client.on_tool_end is not None and tool_id is not None:
-            await self.__client.on_tool_end(tool_id, info, args, result)
+        ...
+        # info = ToolInfo.from_fn(func)
+        # if self.__client.on_tool_end is not None and tool_id is not None:
+        #     await self.__client.on_tool_end(tool_id, info, args, result)
 
     async def call_function_raw(
         self, name: str, args: JSON, tool_id: str | None
@@ -187,7 +261,7 @@ class ToolRegistry:
         # key = func_name if not func_name.startswith("functions.") else func_name[10:]
         if name not in self.__functions:
             return {"error": f"Function or tool `{name}` not found"}
-        func = self.__functions[name][1]
+        func = self.__functions[name].callable
         raw_args = args
         args, kw_args = self.__filter_args(func, args)
         await self.__on_tool_start(func, tool_id, raw_args)

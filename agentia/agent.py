@@ -59,7 +59,7 @@ class ChatCompletion(Generic[M]):
                 yield event
 
 
-class AugmentedGPT:
+class Agent:
     def support_tools(self) -> bool:
         return True
 

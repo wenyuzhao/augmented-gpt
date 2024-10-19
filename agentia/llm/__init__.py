@@ -3,7 +3,7 @@ from typing import Any, AsyncGenerator, List, Literal, Optional, overload
 
 from ..tools import ToolRegistry
 from ..message import FunctionCall, Message, MessageStream
-from ..augmented_gpt import (
+from ..agent import (
     ChatCompletion,
     ChatCompletionEvent,
     UserConsentEvent,

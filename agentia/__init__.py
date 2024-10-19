@@ -5,7 +5,7 @@ import logging
 LOGGER = logging.getLogger("augmented-gpt")
 MSG_LOGGER = LOGGER.getChild("message")
 
-from .decorators import param, tool
+from .decorators import tool
 from .message import (
     MessageStream,
     Message,
@@ -18,8 +18,8 @@ from .message import (
 )
 from .plugins import Plugin
 from . import plugins
-from .augmented_gpt import (
-    AugmentedGPT,
+from .agent import (
+    Agent,
     ChatCompletion,
     ServerError,
     ChatCompletionEvent,
@@ -33,14 +33,13 @@ from .tools import ToolInfo, ToolRegistry, Tools
 
 __all__ = [
     "utils",
-    "param",
     "tool",
     "Message",
     "MessageStream",
     "Role",
     "Plugin",
     "plugins",
-    "AugmentedGPT",
+    "Agent",
     "ChatCompletion",
     "ChatCompletionEvent",
     "UserConsentEvent",
