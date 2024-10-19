@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 NAME_TAG = "agentia_tool_name"
 DISPLAY_NAME_TAG = "agentia_tool_display_name"
 IS_TOOL_TAG = "agentia_tool_is_tool"
+DESCRIPTION_TAG = "agentia_tool_description"
 
 
 @dataclass
@@ -66,6 +67,9 @@ class ToolRegistry:
                 self.__add_plugin(t)
         names = ", ".join([f"{k}" for k in self.__functions.keys()])
         LOGGER.debug(f"Registered Tools: {names}")
+
+    def _add_dispatch_tool(self, f: Callable[..., Any]):
+        return self.__add_function(f)
 
     def __add_function(self, f: Callable[..., Any]):
         fname = getattr(f, NAME_TAG, f.__name__)
@@ -102,6 +106,15 @@ class ToolRegistry:
                 case x if x == int:
                     prop["type"] = "integer"
                 # string enum
+                case x if get_origin(x) == Annotated and get_args(x)[0] == str:
+                    prop["type"] = "string"
+                    args = get_args(x)[1]
+                    for arg in args:
+                        if not isinstance(arg, str):
+                            raise ValueError(
+                                f"{fname}.{pname}: Literal members must be strings only"
+                            )
+                    prop["enum"] = [x for x in args]
                 case x if get_origin(x) == Literal:
                     prop["type"] = "string"
                     args = get_args(x)
@@ -140,7 +153,7 @@ class ToolRegistry:
         tool_info = ToolInfo(
             name=fname,
             display_name=getattr(f, DISPLAY_NAME_TAG, fname),
-            description=f.__doc__ or "",
+            description=getattr(f, DESCRIPTION_TAG, f.__doc__) or "",
             parameters=params,
             callable=f,
         )

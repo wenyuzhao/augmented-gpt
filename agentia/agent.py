@@ -1,7 +1,7 @@
 from typing import (
+    Annotated,
     Callable,
     AsyncGenerator,
-    List,
     Literal,
     TypeVar,
     Any,
@@ -59,24 +59,34 @@ class ChatCompletion(Generic[M]):
                 yield event
 
 
+AGENT_COUNTER = 0
+
+
 class Agent:
     def support_tools(self) -> bool:
         return True
 
     def __init__(
         self,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
         model: str = "openai/gpt-4o",
         tools: Optional["Tools"] = None,
         options: Optional["ModelOptions"] = None,
         api_key: Optional[str] = None,
         instructions: Optional[str] = None,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
         debug: bool = False,
+        colleagues: Optional[list["Agent"]] = None,
     ):
         from .llm import LLMBackend, ModelOptions
         from .llm.openrouter import OpenRouterBackend
         from .tools import ToolRegistry
+
+        global AGENT_COUNTER
+        id = AGENT_COUNTER
+        AGENT_COUNTER += 1
+        if name is None:
+            name = f"Agent#{id}"
 
         self.__backend: LLMBackend = OpenRouterBackend(
             model=model,
@@ -90,6 +100,43 @@ class Agent:
         self.on_tool_end: Optional[Callable[[str, ToolInfo, Any, Any], Any]] = None
         self.name = name
         self.description = description
+        self.colleagues: dict[str, "Agent"] = {}
+
+        if colleagues is not None:
+            self.__init_cooperation(colleagues)
+
+    def __init_cooperation(self, colleagues: list["Agent"]):
+        # Add colleagues
+        for colleague in colleagues:
+            self.colleagues[colleague.name] = colleague
+        # Add a tool to dispatch a job to one colleague
+        agent_names = [agent.name for agent in colleagues]
+        leader = self
+        description = "Dispatch a job to a agents. Note that the agent does not have your job context, so give them the job details as precise as possible. Here are a list of agents with their description:\n"
+        for agent in colleagues:
+            description += f" * {agent.name}: {agent.description}\n"
+
+        from .decorators import tool
+
+        @tool(description=description)
+        async def dispatch_job(
+            agent: Annotated[
+                Annotated[str, agent_names],
+                "The name of the agent to dispatch the job to.",
+            ],
+            job: Annotated[str, "The job to ask the agent to do."],
+        ):
+            print(f"Dispatching job to {agent}: {job}")
+            target = self.colleagues[agent]
+            response = target.chat_completion([Message(role="user", content=job)])
+            results = []
+            async for message in response:
+                if isinstance(message, Message):
+                    print(f"Response from {agent}: {message.content}")
+                    results.append(message.to_json())
+            return results
+
+        self.__backend.tools._add_dispatch_tool(dispatch_job)
 
     def reset(self):
         self.__backend.reset()
@@ -105,12 +152,12 @@ class Agent:
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[False] = False
+        self, messages: list[Message], stream: Literal[False] = False
     ) -> ChatCompletion[Message]: ...
 
     @overload
     def chat_completion(
-        self, messages: List[Message], stream: Literal[True]
+        self, messages: list[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
