@@ -155,7 +155,7 @@ async def vision(image: str | Path, prompt: str, api_key: str | None = None) -> 
     response = gpt.chat_completion(
         [
             Message(
-                role=Role.USER,
+                role="user",
                 content=[ContentPartText(prompt), ContentPartImage(image_url)],
             ),
         ],

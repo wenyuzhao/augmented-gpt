@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from .message import Message, Role
+from .message import Message
 
 
 class History:
@@ -14,7 +14,7 @@ class History:
     def reset(self):
         self.__messages = []
         if self.__instructions is not None:
-            self.add(Message(role=Role.SYSTEM, content=self.__instructions))
+            self.add(Message(role="system", content=self.__instructions))
 
     def add(self, message: Message):
         # TODO: auto trim history

@@ -87,8 +87,7 @@ class OpenAIBackend(LLMBackend):
                 args["tools"] = self.tools.to_json()
                 args["tool_choice"] = "auto"
             else:
-                args["functions"] = self.tools.to_json(legacy=True)
-                args["function_call"] = "auto"
+                raise NotImplementedError("Functions are not supported")
         if stream:
             response = await self.client.chat.completions.create(**args, stream=True)
             return ChatMessageStream(response)
@@ -98,16 +97,12 @@ class OpenAIBackend(LLMBackend):
 
     def __message_to_ccmp(self, m: Message) -> ChatCompletionMessageParam:
         content = m.content or ""
-        if m.role == Role.SYSTEM:
+        if m.role == "system":
             assert isinstance(content, str)
             return ChatCompletionSystemMessageParam(role="system", content=content)
-        if m.role == Role.FUNCTION:
-            assert isinstance(content, str)
-            assert m.name is not None
-            return ChatCompletionFunctionMessageParam(
-                role="function", name=m.name, content=content
-            )
-        if m.role == Role.TOOL:
+        # if m.role == Role.FUNCTION:
+        #     raise NotImplementedError("Function is not supported")
+        if m.role == "tool":
             assert isinstance(content, str)
             assert m.tool_call_id is not None
             return ChatCompletionToolMessageParam(
@@ -115,14 +110,14 @@ class OpenAIBackend(LLMBackend):
                 tool_call_id=m.tool_call_id,
                 content=content,
             )
-        if m.role == Role.USER:
+        if m.role == "user":
             _content = (
                 content
                 if isinstance(content, str)
                 else [c.to_openai_content_part() for c in content]
             )
             return ChatCompletionUserMessageParam(role="user", content=_content)
-        if m.role == Role.ASSISTANT:
+        if m.role == "assistant":
             assert isinstance(content, str)
             if len(m.tool_calls) > 0:
                 return ChatCompletionAssistantMessageParam(
@@ -140,7 +135,7 @@ class OpenAIBackend(LLMBackend):
 
     def __ccm_to_message(self, m: ChatCompletionMessage) -> "Message":
         return Message(
-            role=Role.from_str(m.role),
+            role=m.role,
             content=m.content,
             name=m.function_call.name if m.function_call is not None else None,
             tool_calls=(
@@ -183,7 +178,7 @@ class ChatMessageStream(MessageStream):
     ):
         self.__response = response
         self.__aiter = response.__aiter__()
-        self.__message = Message(role=Role.ASSISTANT)
+        self.__message = Message(role="assistant")
         self.__tool_calls: list[ChoiceDeltaToolCall] = []
         self.__final_message: Optional[Message] = None
 
@@ -240,7 +235,7 @@ class ChatMessageStream(MessageStream):
         if delta.tool_calls is not None:
             self.__merge_tool_calls(delta.tool_calls)
         if delta.role is not None:
-            self.__message.role = Role.from_str(delta.role)
+            self.__message.role = delta.role
         return delta.content or ""
 
     async def __anext__(self) -> str:

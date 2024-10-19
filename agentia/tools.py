@@ -151,7 +151,10 @@ class ToolRegistry:
                 clsname = clsname[:-6]
             tool_info = self.__add_function(method)
             if not tool_info.name.startswith(clsname + "__"):
+                old_name = tool_info.name
                 tool_info.name = clsname + "__" + tool_info.name
+                del self.__functions[old_name]
+                self.__functions[tool_info.name] = tool_info
         # Add the plugin to the list of plugins
         clsname = p.__class__.__name__
         if clsname.endswith("Plugin"):
@@ -260,7 +263,7 @@ class ToolRegistry:
             MSG_LOGGER.info(f"GPT-Function {name} {args_s}")
         # key = func_name if not func_name.startswith("functions.") else func_name[10:]
         if name not in self.__functions:
-            return {"error": f"Function or tool `{name}` not found"}
+            return {"error": f"Tool `{name}` not found"}
         func = self.__functions[name].callable
         raw_args = args
         args, kw_args = self.__filter_args(func, args)
@@ -301,9 +304,9 @@ class ToolRegistry:
             else:
                 result = raw_result
             if t.id is not None:
-                result_msg = Message(role=Role.TOOL, tool_call_id=t.id, content=result)
+                result_msg = Message(role="tool", tool_call_id=t.id, content=result)
             else:
-                result_msg = Message(role=Role.FUNCTION, name=t.id, content=result)
+                raise NotImplementedError("legacy functions not supported")
             yield result_msg
             await self.on_new_chat_message(result_msg)
 

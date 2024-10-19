@@ -82,17 +82,7 @@ class ToolCall:
         }
 
 
-class Role(StrEnum):
-    SYSTEM = "system"
-    USER = "user"
-    ASSISTANT = "assistant"
-    FUNCTION = "function"
-    TOOL = "tool"
-
-    @staticmethod
-    def from_str(s: str) -> "Role":
-        assert s in ["system", "user", "assistant", "function"]
-        return Role(s)
+Role: TypeAlias = Literal["system", "user", "assistant", "tool"]
 
 
 class ContentPartText:
@@ -116,7 +106,6 @@ ContentPart = Union[ContentPartText, ContentPartImage]
 
 @dataclass
 class Message:
-    Role = Role
     role: Role
     """The role of the messages author.
 
@@ -158,7 +147,7 @@ class Message:
 
     def to_dict(self) -> Mapping[str, Any]:
         data: Mapping[str, Any] = {
-            "role": self.role.value,
+            "role": self.role,
             "content": (
                 self.content
                 if isinstance(self.content, str) or self.content is None
@@ -177,8 +166,9 @@ class Message:
     @staticmethod
     def from_dict(data: Any) -> "Message":
         data = cast(Mapping[str, Any], data)
+        assert data["role"] in ["system", "user", "assistant", "tool"]
         return Message(
-            role=Role.from_str(data["role"]),
+            role=data["role"],
             content=(
                 data["content"]
                 if isinstance(data["content"], str) or data["content"] is None
