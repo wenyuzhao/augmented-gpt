@@ -288,6 +288,8 @@ class ToolRegistry:
             else:
                 result = result_or_coroutine
         except BaseException as e:
+            # print(e)
+            raise e
             MSG_LOGGER.error(f"Failed to run tool `{name}`: {e}")
             result = {"error": f"Failed to run tool `{name}`: {e}"}
         await self.__on_tool_end(func, tool_id, raw_args, result)

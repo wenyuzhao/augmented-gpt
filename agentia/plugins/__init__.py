@@ -1,7 +1,7 @@
 from ..decorators import tool
 from ..message import Message
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from agentia import tool
 
 if TYPE_CHECKING:
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class Plugin:
-    def __init__(self, name: Optional[str] = None, config: Any = None):
+    def __init__(self, name: str | None = None, config: Any = None):
         self.name = name or self.__class__.__name__
         self.config = config
         self.agent: "Agent"

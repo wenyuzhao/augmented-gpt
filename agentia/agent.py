@@ -106,15 +106,15 @@ class Agent:
         if colleagues is not None:
             self.__init_cooperation(colleagues)
 
-    def __init_cooperation(self, colleagues: list["Agent"]):
-        # Add colleagues
-        for colleague in colleagues:
-            self.colleagues[colleague.name] = colleague
+    def __add_colleague(self, colleague: "Agent"):
+        if colleague.name in self.colleagues:
+            return
+        self.colleagues[colleague.name] = colleague
         # Add a tool to dispatch a job to one colleague
-        agent_names = [agent.name for agent in colleagues]
+        agent_names = [agent.name for agent in self.colleagues.values()]
         leader = self
         description = "Dispatch a job to a agents. Note that the agent does not have your job context, so give them the job details as precise as possible. Here are a list of agents with their description:\n"
-        for agent in colleagues:
+        for agent in self.colleagues.values():
             description += f" * {agent.name}: {agent.description}\n"
 
         from .decorators import tool
@@ -138,6 +138,16 @@ class Agent:
             return results
 
         self.__backend.tools._add_dispatch_tool(dispatch_job)
+
+    def __init_cooperation(self, colleagues: list["Agent"]):
+        # Leader can dispatch jobs to colleagues
+        for colleague in colleagues:
+            self.__add_colleague(colleague)
+        # Colleagues can communicate with each other
+        for i in range(len(colleagues)):
+            for j in range(i + 1, len(colleagues)):
+                colleagues[i].__add_colleague(colleagues[j])
+                colleagues[j].__add_colleague(colleagues[i])
 
     def reset(self):
         self.__backend.reset()
