@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from logging import Logger
 from typing import Any, AsyncGenerator, Literal, overload
 
 from ..tools import ToolRegistry
 from ..message import Message, MessageStream
-from ..agent import ChatCompletion, ChatCompletionEvent, UserConsentEvent
+from ..agent import ChatCompletion
 from ..history import History
 
 from dataclasses import dataclass
@@ -49,14 +50,13 @@ class LLMBackend:
         tools: ToolRegistry,
         options: ModelOptions,
         instructions: str | None,
-        debug: bool,
     ):
-        self.debug = debug
         self.options = options or ModelOptions()
         self.model = model
         self.tools = tools
         self.instructions = instructions
         self.history = History(instructions=instructions)
+        self.log = tools._agent.log
 
     def reset(self):
         """Clear and reset all history"""
@@ -104,19 +104,19 @@ class LLMBackend:
     @overload
     async def __chat_completion(
         self, messages: list[Message], stream: Literal[False] = False
-    ) -> AsyncGenerator[ChatCompletionEvent[Message], None]: ...
+    ) -> AsyncGenerator[Message, None]: ...
 
     @overload
     async def __chat_completion(
         self, messages: list[Message], stream: Literal[True] = True
-    ) -> AsyncGenerator[ChatCompletionEvent[MessageStream], None]: ...
+    ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(self, messages: list[Message], stream: bool = False):
         history = [h for h in self.history.get()]
         old_history_length = len(history)
         history.extend(messages)
         for m in messages:
-            MSG_LOGGER.info(f"{m}")
+            self.log.info(f"{m}")
             await self._on_new_chat_message(m)
         # First completion request
         message: Message
@@ -129,7 +129,7 @@ class LLMBackend:
             if message.content is not None:
                 yield message
         history.append(message)
-        MSG_LOGGER.info(f"{message}")
+        self.log.info(f"{message}")
         await self._on_new_chat_message(message)
         # Run tools and submit results until convergence
         while len(message.tool_calls) > 0:
@@ -150,12 +150,7 @@ class LLMBackend:
                 if message.content is not None:
                     yield message
             history.append(message)
-            MSG_LOGGER.info(f"{message}")
+            self.log.info(f"{message}")
             await self._on_new_chat_message(message)
-        if _unreachable:
-            yield UserConsentEvent(id="", message="")
         for h in history[old_history_length:]:
             self.history.add(h)
-
-
-_unreachable = False

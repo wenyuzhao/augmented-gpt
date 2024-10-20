@@ -1,7 +1,10 @@
+import asyncio
+import logging
 from typing import (
     Annotated,
     Callable,
     AsyncGenerator,
+    Coroutine,
     Literal,
     Optional,
     TypeVar,
@@ -10,6 +13,8 @@ from typing import (
     overload,
     TYPE_CHECKING,
 )
+
+from agentia import MSG_LOGGER
 
 from .message import *
 from .history import History
@@ -32,23 +37,16 @@ class ToolCallEvent:
     type: Literal["tool"] = "tool"
 
 
-@dataclass
-class UserConsentEvent:
-    id: str
-    message: str
-    type: Literal["consent"] = "consent"
-
-
-ChatCompletionEvent = ToolCallEvent | UserConsentEvent | M
+ToolCallEventListener = Callable[[ToolCallEvent], Any]
 
 
 @dataclass
 class ChatCompletion(Generic[M]):
-    def __init__(self, agen: AsyncGenerator[ChatCompletionEvent[M], None]) -> None:
+    def __init__(self, agen: AsyncGenerator[M, None]) -> None:
         super().__init__()
         self.__agen = agen
 
-    async def __anext__(self) -> ChatCompletionEvent[M]:
+    async def __anext__(self) -> M:
         return await self.__agen.__anext__()
 
     def __aiter__(self):
@@ -59,8 +57,25 @@ class ChatCompletion(Generic[M]):
             if isinstance(event, Message) or isinstance(event, MessageStream):
                 yield event
 
+    async def __await_impl(self) -> str:
+        last_message = ""
+        async for msg in self.__agen:
+            if isinstance(msg, Message):
+                assert isinstance(msg.content, str)
+                last_message = msg.content
+            if isinstance(msg, MessageStream):
+                last_message = ""
+                async for delta in msg:
+                    last_message += delta
+        return last_message
+
+    def __await__(self):
+        return self.__await_impl().__await__()
+
 
 AGENT_COUNTER = 0
+
+UserConsentHandler = Callable[[str], bool | Coroutine[Any, Any, bool]]
 
 
 class Agent:
@@ -89,22 +104,55 @@ class Agent:
         if name is None:
             name = f"Agent#{id}"
 
+        self.log = MSG_LOGGER.getChild(name)
+        if debug:
+            self.log.setLevel(logging.DEBUG)
         self.__backend: LLMBackend = OpenRouterBackend(
             model=model,
             tools=ToolRegistry(self, tools),
             options=options or ModelOptions(),
             instructions=instructions,
-            debug=debug,
             api_key=api_key,
         )
-        self.on_tool_start: Callable[[str, ToolInfo, Any], Any] | None = None
-        self.on_tool_end: Callable[[str, ToolInfo, Any, Any], Any] | None = None
         self.name = name
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
+        self.__user_consent_handler: UserConsentHandler | None = None
+        self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
+        self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
 
         if colleagues is not None:
             self.__init_cooperation(colleagues)
+
+    async def request_for_user_consent(self, message: str) -> bool:
+        if self.__user_consent_handler is not None:
+            result = self.__user_consent_handler(message)
+            if asyncio.iscoroutine(result):
+                return await result
+            return result
+        return True
+
+    def on_user_consent(self, listener: UserConsentHandler):
+        self.__user_consent_handler = listener
+        return listener
+
+    def on_tool_start(self, listener: Callable[[ToolCallEvent], Any]):
+        self.__on_tool_start = listener
+        return listener
+
+    def on_tool_end(self, listener: Callable[[ToolCallEvent], Any]):
+        self.__on_tool_end = listener
+
+    async def _emit_tool_call_event(self, event: ToolCallEvent):
+        async def call_listener(listener: ToolCallEventListener):
+            result = listener(event)
+            if asyncio.iscoroutine(result):
+                await result
+
+        if event.result is None and self.__on_tool_start is not None:
+            await call_listener(self.__on_tool_start)
+        if event.result is not None and self.__on_tool_end is not None:
+            await call_listener(self.__on_tool_end)
 
     def __add_colleague(self, colleague: "Agent"):
         if colleague.name in self.colleagues:
@@ -113,7 +161,7 @@ class Agent:
         # Add a tool to dispatch a job to one colleague
         agent_names = [agent.name for agent in self.colleagues.values()]
         leader = self
-        description = "Dispatch a job to a agents. Note that the agent does not have your job context, so give them the job details as precise as possible. Here are a list of agents with their description:\n"
+        description = "Dispatch a job to a agent. Note that the agent does not have any context expect what you explicitly told them, so give them the job details as precise and as much as possible. Agents cannot contact each other, please coordinate the jobs between them properly by yourself to complete the whole task. Here are a list of agents with their description:\n"
         for agent in self.colleagues.values():
             description += f" * {agent.name}: {agent.description}\n"
 
@@ -127,13 +175,18 @@ class Agent:
             ],
             job: Annotated[str, "The job to ask the agent to do."],
         ):
-            print(f"Dispatching job to {agent}: {job}")
+            self.log.info(f"DISPATCH {leader.name} -> {agent}: {repr(job)}")
             target = self.colleagues[agent]
-            response = target.chat_completion([Message(role="user", content=job)])
+            job_message = f"This is a job assigned to you by {leader.name} ({leader.description}):\n\n{job}"
+            response = target.chat_completion(
+                [Message(role="user", content=job_message)]
+            )
             results = []
             async for message in response:
                 if isinstance(message, Message):
-                    print(f"Response from {agent}: {message.content}")
+                    self.log.info(
+                        f"RESPONSE {leader.name} <- {agent}: {repr(message.content)}"
+                    )
                     results.append(message.to_json())
             return results
 
@@ -144,10 +197,10 @@ class Agent:
         for colleague in colleagues:
             self.__add_colleague(colleague)
         # Colleagues can communicate with each other
-        for i in range(len(colleagues)):
-            for j in range(i + 1, len(colleagues)):
-                colleagues[i].__add_colleague(colleagues[j])
-                colleagues[j].__add_colleague(colleagues[i])
+        # for i in range(len(colleagues)):
+        #     for j in range(i + 1, len(colleagues)):
+        #         colleagues[i].__add_colleague(colleagues[j])
+        #         colleagues[j].__add_colleague(colleagues[i])
 
     def reset(self):
         self.__backend.reset()

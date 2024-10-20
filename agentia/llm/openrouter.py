@@ -48,10 +48,9 @@ class OpenRouterBackend(LLMBackend):
         tools: ToolRegistry,
         options: ModelOptions,
         instructions: str | None,
-        debug: bool,
         api_key: str | None = None,
     ) -> None:
-        super().__init__(model, tools, options, instructions, debug)
+        super().__init__(model, tools, options, instructions)
         api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable is not set")

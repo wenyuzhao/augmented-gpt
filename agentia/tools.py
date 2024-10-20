@@ -16,7 +16,6 @@ from typing import (
 )
 
 from agentia.agent import ToolCallEvent
-from . import LOGGER, MSG_LOGGER
 
 from .message import JSON, FunctionCall, Message, Role, ToolCall
 
@@ -55,14 +54,14 @@ class ToolRegistry:
     def __init__(self, agent: "Agent", tools: Tools | None = None) -> None:
         self.__functions: dict[str, ToolInfo] = {}
         self.__plugins: Any = {}
-        self.__agent = agent
+        self._agent = agent
         for t in tools or []:
             if inspect.isfunction(t):
                 self.__add_function(t)
             elif isinstance(t, Plugin):
                 self.__add_plugin(t)
         names = ", ".join([f"{k}" for k in self.__functions.keys()])
-        LOGGER.debug(f"Registered Tools: {names}")
+        self._agent.log.debug(f"Registered Tools: {names}")
 
     def _add_dispatch_tool(self, f: Callable[..., Any]):
         return self.__add_function(f)
@@ -176,7 +175,7 @@ class ToolRegistry:
             clsname = clsname[:-6]
         self.__plugins[clsname] = p
         # Call the plugin's register method
-        p.register(self.__agent)
+        p.register(self._agent)
 
     def get_plugin(self, name: str) -> Plugin:
         return self.__plugins[name]
@@ -195,8 +194,8 @@ class ToolRegistry:
         return {
             "openapi": "3.1.0",
             "info": {
-                "title": self.__agent.name or "",
-                "description": self.__agent.description or "",
+                "title": self._agent.name or "",
+                "description": self._agent.description or "",
                 "version": "v1.0.0",
             },
             "servers": [{"url": url}],
@@ -240,47 +239,23 @@ class ToolRegistry:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
 
-    async def __on_tool_start(
-        self, func: Callable[..., Any], tool_id: str | None, args: JSON
-    ):
-        ...
-        # info = ToolInfo.from_fn(func)
-        # if self.__client.on_tool_start is not None and tool_id is not None:
-        #     await self.__client.on_tool_start(tool_id, info, args)
-
-    async def __on_tool_end(
-        self,
-        func: Callable[..., Any],
-        tool_id: str | None,
-        args: JSON,
-        result: JSON,
-    ):
-        ...
-        # info = ToolInfo.from_fn(func)
-        # if self.__client.on_tool_end is not None and tool_id is not None:
-        #     await self.__client.on_tool_end(tool_id, info, args, result)
-
     async def call_function_raw(
         self, name: str, args: JSON, tool_id: str | None
     ) -> Any:
         args_s = ""
         if isinstance(args, dict):
             for k, v in args.items():
-                args_s += f"{k}={v}, "
+                args_s += f"{k}={repr(v)}, "
             args_s = args_s[:-2]
         else:
             args_s = str(args)
-        if tool_id is not None:
-            MSG_LOGGER.info(f"GPT-Tool[{tool_id}] {name} {args_s}")
-        else:
-            MSG_LOGGER.info(f"GPT-Function {name} {args_s}")
+        self._agent.log.info(f"TOOL#{tool_id} {name} {args_s}")
         # key = func_name if not func_name.startswith("functions.") else func_name[10:]
         if name not in self.__functions:
             return {"error": f"Tool `{name}` not found"}
         func = self.__functions[name].callable
         raw_args = args
         args, kw_args = self.__filter_args(func, args)
-        await self.__on_tool_start(func, tool_id, raw_args)
         try:
             result_or_coroutine = func(*args, **kw_args)
             if inspect.iscoroutine(result_or_coroutine):
@@ -290,14 +265,9 @@ class ToolRegistry:
         except BaseException as e:
             # print(e)
             raise e
-            MSG_LOGGER.error(f"Failed to run tool `{name}`: {e}")
             result = {"error": f"Failed to run tool `{name}`: {e}"}
-        await self.__on_tool_end(func, tool_id, raw_args, result)
         result_s = json.dumps(result)
-        if tool_id is not None:
-            MSG_LOGGER.info(f"GPT-Tool[{tool_id}] {name} -> {result_s}")
-        else:
-            MSG_LOGGER.info(f"GPT-Function {name} -> {result_s}")
+        self._agent.log.info(f"TOOL#{tool_id} {name} -> {result_s}")
         return result
 
     async def call_function(
@@ -311,9 +281,13 @@ class ToolRegistry:
     async def call_tools(self, tool_calls: Sequence[ToolCall]):
         for t in tool_calls:
             assert t.type == "function"
-            yield ToolCallEvent(id=t.id, function=t.function)
+            await self._agent._emit_tool_call_event(
+                ToolCallEvent(id=t.id, function=t.function)
+            )
             raw_result = await self.call_function(t.function, tool_id=t.id)
-            yield ToolCallEvent(id=t.id, function=t.function, result=raw_result)
+            await self._agent._emit_tool_call_event(
+                ToolCallEvent(id=t.id, function=t.function, result=raw_result)
+            )
             if not isinstance(raw_result, str):
                 result = json.dumps(raw_result)
             else:
