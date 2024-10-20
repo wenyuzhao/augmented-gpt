@@ -167,6 +167,8 @@ class ToolRegistry:
             if not tool_info.name.startswith(clsname + "__"):
                 old_name = tool_info.name
                 tool_info.name = clsname + "__" + tool_info.name
+                if not hasattr(tool_info, DISPLAY_NAME_TAG):
+                    tool_info.display_name = clsname + "@" + tool_info.display_name
                 del self.__functions[old_name]
                 self.__functions[tool_info.name] = tool_info
         # Add the plugin to the list of plugins
@@ -223,12 +225,20 @@ class ToolRegistry:
         }
 
     def __filter_args(self, callable: Callable[..., Any], args: Any):
+        from .agent import Agent
+
         p_args: list[Any] = []
         kw_args: dict[str, Any] = {}
         for p in inspect.signature(callable).parameters.values():
             match p.kind:
+                case Parameter.POSITIONAL_ONLY if p.annotation == Agent:
+                    p_args.append(self._agent)
                 case Parameter.POSITIONAL_ONLY:
                     p_args.append(args[p.name] if p.name in args else p.default)
+                case (
+                    Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY
+                ) if p.annotation == Agent:
+                    kw_args[p.name] = self._agent
                 case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY:
                     if p.name == "__context__" and p.name not in args:
                         # kw_args[p.name] = context
@@ -281,12 +291,24 @@ class ToolRegistry:
     async def call_tools(self, tool_calls: Sequence[ToolCall]):
         for t in tool_calls:
             assert t.type == "function"
+            assert t.function.name in self.__functions
+            name = t.function.name
+            info = self.__functions[name]
+
             await self._agent._emit_tool_call_event(
-                ToolCallEvent(id=t.id, function=t.function)
+                ToolCallEvent(
+                    agent=self._agent, tool=info, id=t.id, function=t.function
+                )
             )
             raw_result = await self.call_function(t.function, tool_id=t.id)
             await self._agent._emit_tool_call_event(
-                ToolCallEvent(id=t.id, function=t.function, result=raw_result)
+                ToolCallEvent(
+                    agent=self._agent,
+                    tool=info,
+                    id=t.id,
+                    function=t.function,
+                    result=raw_result,
+                )
             )
             if not isinstance(raw_result, str):
                 result = json.dumps(raw_result)

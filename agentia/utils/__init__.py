@@ -1,3 +1,3 @@
-from . import gpts, voice, image
+from . import gpts, voice, image, server, repl
 
-__all__ = ["voice", "image", "gpts"]
+__all__ = ["voice", "image", "gpts", "server", "repl"]

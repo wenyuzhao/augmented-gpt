@@ -163,3 +163,4 @@ cython_debug/
 /examples/_*
 /examples/_
 /.vscode
+/agents

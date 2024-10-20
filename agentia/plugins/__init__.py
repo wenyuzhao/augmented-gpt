@@ -20,15 +20,19 @@ class Plugin:
     def on_new_chat_message(self, msg: Message) -> Any: ...
 
 
-class TimestampPlugin(Plugin):
+class ClockPlugin(Plugin):
     @tool
-    def get_current_timestamp(self):
-        """Get the current tempstamp in ISO format"""
+    def get_current_time(self):
+        """Get the current time in ISO format"""
         return datetime.datetime.now().isoformat()
 
 
 from .calc import *
+from .code import *
 
 
-def all_plugins():
-    return [TimestampPlugin(), CalculatorPlugin()]
+ALL_PLUGINS = {
+    "clock": ClockPlugin,
+    "calc": CalculatorPlugin,
+    "code": CodePlugin,
+}

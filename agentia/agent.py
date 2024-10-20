@@ -31,6 +31,8 @@ M = TypeVar("M", Message, MessageStream)
 
 @dataclass
 class ToolCallEvent:
+    agent: "Agent"
+    tool: "ToolInfo"
     id: str
     function: FunctionCall
     result: Any | None = None
@@ -101,9 +103,6 @@ UserConsentHandler = Callable[[str], bool | Coroutine[Any, Any, bool]]
 
 
 class Agent:
-    def support_tools(self) -> bool:
-        return True
-
     def __init__(
         self,
         name: str | None = None,
@@ -160,9 +159,10 @@ class Agent:
         self.__user_consent_handler: UserConsentHandler | None = None
         self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
-        self.__dump_communication: bool = False
+        self._dump_communication: bool = False
+        self.context: Any = None
 
-        if colleagues is not None:
+        if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
 
     @staticmethod
@@ -215,7 +215,7 @@ class Agent:
         # Add a tool to dispatch a job to one colleague
         agent_names = [agent.name for agent in self.colleagues.values()]
         leader = self
-        description = "Send a message or dispatch a job to a agent. Note that the agent does not have any context expect what you explicitly told them, so give them the details as precise and as much as possible. Agents cannot contact each other, please coordinate the jobs and information between them properly by yourself when necessary. Here are a list of agents with their description:\n"
+        description = "Send a message or dispatch a job to a agent, and get the response from them. Note that the agent does not have any context expect what you explicitly told them, so give them the details as precise and as much as possible. Agents cannot contact each other, please coordinate the jobs and information between them properly by yourself when necessary. Here are a list of agents with their description:\n"
         for agent in self.colleagues.values():
             description += f" * {agent.name}: {agent.description}\n"
 
@@ -233,7 +233,7 @@ class Agent:
         ):
             self.log.info(f"COMMUNICATE {leader.name} -> {agent}: {repr(message)}")
 
-            if leader.__dump_communication:
+            if leader._dump_communication:
                 print(f"[{leader.name} -> {agent}] {message}")
             target = self.colleagues[agent]
             response = target.chat_completion(
@@ -245,16 +245,17 @@ class Agent:
                     Message(role="user", content=message),
                 ]
             )
-            results = []
+            last_message = ""
             async for m in response:
                 if isinstance(m, Message):
                     self.log.info(
                         f"RESPONSE {leader.name} <- {agent}: {repr(m.content)}"
                     )
-                    results.append(m.to_json())
-                    if leader.__dump_communication:
+                    # results.append(m.to_json())
+                    last_message = m.content
+                    if leader._dump_communication:
                         print(f"[{leader.name} <- {agent}] {m.content}")
-            return results
+            return last_message
 
         self.__backend.tools._add_dispatch_tool(communiate)
 
@@ -312,19 +313,9 @@ class Agent:
     def tools(self) -> "ToolRegistry":
         return self.__backend.tools
 
-    async def __repl_impl(self):
-        self.__dump_communication = True
-        while True:
-            try:
-                prompt = input("> ").strip()
-                if prompt == "exit" or prompt == "quit":
-                    break
-            except EOFError:
-                break
-            response = self.chat_completion(
-                [Message(role="user", content=prompt)], stream=True
-            )
-            await response.dump(name=self.name)
-
-    def repl(self):
-        asyncio.run(self.__repl_impl())
+    def all_agents(self) -> set["Agent"]:
+        agents = set()
+        agents.add(self)
+        for agent in self.colleagues.values():
+            agents.update(agent.all_agents())
+        return agents
