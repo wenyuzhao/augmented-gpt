@@ -1,7 +1,7 @@
 import asyncio
 from agentia.agent import Agent, ToolCallEvent
 from agentia.message import Message
-from agentia.utils.server import load_agent_from_config
+from agentia.utils.config import load_agent_from_config
 
 
 async def run_async(agent: Agent):

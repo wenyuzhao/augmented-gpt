@@ -319,3 +319,11 @@ class Agent:
         for agent in self.colleagues.values():
             agents.update(agent.all_agents())
         return agents
+
+    @staticmethod
+    def load_from_config(
+        config: str, resolver: Callable[[str], Path | None] | None = None
+    ):
+        from .utils.config import load_agent_from_config
+
+        load_agent_from_config(config, resolver)

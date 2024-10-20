@@ -1,3 +1,4 @@
+from typing import Callable
 import yaml
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from agentia.plugins import ALL_PLUGINS
 AGENTS_FOLDERS = [Path.cwd(), Path.cwd() / "agents"]
 
 
-def __load_config_file(id: str):
+def default_resolver(id: str) -> Path:
     """Load a configuration file"""
     id = id.strip()
     has_ext = id.endswith(".yaml") or id.endswith(".yml")
@@ -19,13 +20,18 @@ def __load_config_file(id: str):
             if not file.exists():
                 file = folder / f"{id}.yml"
         if file.exists():
-            return file, yaml.safe_load(file.read_text())
+            return file
     raise FileNotFoundError(f"Agent not found: {id}")
 
 
-def __load_agent_from_config(id: str, pending: set[str], agents: dict[str, Agent]):
+def __load_agent_from_config(
+    id: str, pending: set[str], agents: dict[str, Agent], resolver=default_resolver
+):
     """Load a bot from a configuration file"""
-    file, config = __load_config_file(id)
+    file = resolver(id)
+    if file is None:
+        raise FileNotFoundError(f"Agent not found: {id}")
+    config = yaml.safe_load(file.read_text())
     id = config.get("id", id)
     if file.stem in pending:
         raise ValueError(f"Circular dependency detected: {id}")
@@ -64,6 +70,10 @@ def __load_agent_from_config(id: str, pending: set[str], agents: dict[str, Agent
     return agent
 
 
-def load_agent_from_config(id: str):
+def load_agent_from_config(
+    id: str, resolver: Callable[[str], Path | None] | None = None
+):
     """Load a bot from a configuration file"""
-    return __load_agent_from_config(id, set(), dict())
+    return __load_agent_from_config(
+        id, set(), dict(), resolver=resolver or default_resolver
+    )
