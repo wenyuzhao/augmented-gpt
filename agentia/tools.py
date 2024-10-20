@@ -17,7 +17,7 @@ from typing import (
 
 from agentia.agent import ToolCallEvent
 
-from .message import JSON, FunctionCall, Message, Role, ToolCall
+from .message import JSON, FunctionCall, Message, Role, ToolCall, ToolMessage
 
 from .plugins import Plugin
 
@@ -315,7 +315,7 @@ class ToolRegistry:
             else:
                 result = raw_result
             if t.id is not None:
-                result_msg = Message(role="tool", tool_call_id=t.id, content=result)
+                result_msg = ToolMessage(tool_call_id=t.id, content=result)
             else:
                 raise NotImplementedError("legacy functions not supported")
             yield result_msg

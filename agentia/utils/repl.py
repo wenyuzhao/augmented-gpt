@@ -1,6 +1,6 @@
 import asyncio
 from agentia.agent import Agent, ToolCallEvent
-from agentia.message import Message
+from agentia.message import Message, UserMessage
 from agentia.utils.config import load_agent_from_config
 
 
@@ -13,9 +13,7 @@ async def run_async(agent: Agent):
                 break
         except EOFError:
             break
-        response = agent.chat_completion(
-            [Message(role="user", content=prompt)], stream=True
-        )
+        response = agent.chat_completion([UserMessage(prompt)], stream=True)
         await response.dump(name=agent.name)
 
 

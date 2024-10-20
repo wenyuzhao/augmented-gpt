@@ -1,5 +1,5 @@
 from typing import Any
-from .message import Message
+from .message import BaseMessage, Message, SystemMessage
 
 
 class History:
@@ -14,14 +14,14 @@ class History:
     def reset(self):
         self.__messages = []
         if self.__instructions is not None:
-            self.add(Message(role="system", content=self.__instructions))
+            self.add(SystemMessage(self.__instructions))
 
     def add(self, message: Message):
         # TODO: auto trim history
         self.__messages.append(message)
 
     def get_raw_messages(self) -> Any:
-        return [m.to_dict() for m in self.__messages]
+        return [m.to_json() for m in self.__messages]
 
     def set_raw_messages(self, data: Any):
-        self.__messages = [Message.from_dict(m) for m in data]
+        self.__messages = [BaseMessage.from_json(m) for m in data]

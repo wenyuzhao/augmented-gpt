@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .plugins import Plugin
     from .llm import ModelOptions
 
-M = TypeVar("M", Message, MessageStream)
+M = TypeVar("M", AssistantMessage, MessageStream)
 
 
 @dataclass
@@ -239,11 +239,10 @@ class Agent:
             target = self.colleagues[agent]
             response = target.chat_completion(
                 [
-                    Message(
-                        role="system",
-                        content=f"{leader.name} is directly talking to you right now. ({leader.name}: {leader.description})",
+                    SystemMessage(
+                        f"{leader.name} is directly talking to you right now. ({leader.name}: {leader.description})",
                     ),
-                    Message(role="user", content=message),
+                    UserMessage(message),
                 ]
             )
             last_message = ""
@@ -285,7 +284,7 @@ class Agent:
     @overload
     def chat_completion(
         self, messages: list[Message], stream: Literal[False] = False
-    ) -> ChatCompletion[Message]: ...
+    ) -> ChatCompletion[AssistantMessage]: ...
 
     @overload
     def chat_completion(
@@ -296,7 +295,7 @@ class Agent:
         self,
         messages: list[Message],
         stream: bool = False,
-    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         if stream:
             return self.__backend.chat_completion(messages, stream=True)
         else:

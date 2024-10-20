@@ -3,7 +3,7 @@ from logging import Logger
 from typing import Any, AsyncGenerator, Literal, overload
 
 from ..tools import ToolRegistry
-from ..message import Message, MessageStream
+from ..message import AssistantMessage, Message, MessageStream
 from ..agent import ChatCompletion
 from ..history import History
 
@@ -68,7 +68,7 @@ class LLMBackend:
     @overload
     def chat_completion(
         self, messages: list[Message], stream: Literal[False] = False
-    ) -> ChatCompletion[Message]: ...
+    ) -> ChatCompletion[AssistantMessage]: ...
 
     @overload
     def chat_completion(
@@ -77,7 +77,7 @@ class LLMBackend:
 
     def chat_completion(
         self, messages: list[Message], stream: bool = False
-    ) -> ChatCompletion[MessageStream] | ChatCompletion[Message]:
+    ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         if stream:
             return ChatCompletion(self.__chat_completion(messages, stream=True))
         else:
@@ -89,7 +89,7 @@ class LLMBackend:
     @overload
     async def _chat_completion_request(
         self, messages: list[Message], stream: Literal[False]
-    ) -> Message: ...
+    ) -> AssistantMessage: ...
 
     @overload
     async def _chat_completion_request(
@@ -104,7 +104,7 @@ class LLMBackend:
     @overload
     async def __chat_completion(
         self, messages: list[Message], stream: Literal[False] = False
-    ) -> AsyncGenerator[Message, None]: ...
+    ) -> AsyncGenerator[AssistantMessage, None]: ...
 
     @overload
     async def __chat_completion(
@@ -119,7 +119,7 @@ class LLMBackend:
             self.log.info(f"{m}")
             await self._on_new_chat_message(m)
         # First completion request
-        message: Message
+        message: AssistantMessage
         if stream:
             s = await self._chat_completion_request(history, stream=True)
             yield s
@@ -140,7 +140,7 @@ class LLMBackend:
                 else:
                     yield event
             # Submit results
-            message: Message
+            message: AssistantMessage
             if stream:
                 r = await self._chat_completion_request(history, stream=True)
                 yield r

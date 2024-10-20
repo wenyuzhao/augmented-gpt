@@ -1,5 +1,5 @@
-from agentia import Agent, Message, tool, utils
-from agentia.message import ContentPartImage, ContentPartText
+from agentia import Agent, UserMessage, tool, utils
+from agentia.message import AssistantMessage, ContentPartImage, ContentPartText
 import pytest
 import dotenv
 
@@ -11,8 +11,7 @@ async def test_vision():
     gpt = Agent(model="gpt-4-vision-preview")
     response = gpt.chat_completion(
         [
-            Message(
-                role="user",
+            UserMessage(
                 content=[
                     ContentPartText("What is this animal?"),
                     ContentPartImage(
@@ -24,11 +23,8 @@ async def test_vision():
     )
     all_assistant_content = ""
     async for msg in response:
-        if not isinstance(msg, Message):
-            continue
-        if msg.role == "assistant":
-            assert msg.content is None or isinstance(msg.content, str)
-            all_assistant_content += msg.content or ""
+        assert msg.content is None or isinstance(msg.content, str)
+        all_assistant_content += msg.content or ""
         print(msg)
     assert "cat" in all_assistant_content.lower()
 

@@ -1,6 +1,6 @@
 from typing import Literal
 from agentia.agent import Agent
-from agentia.message import ContentPartImage, ContentPartText, Message
+from agentia.message import ContentPartImage, ContentPartText, Message, UserMessage
 
 import openai
 from pathlib import Path
@@ -154,8 +154,7 @@ async def vision(image: str | Path, prompt: str, api_key: str | None = None) -> 
     gpt = Agent(model="gpt-4o-mini", api_key=api_key)
     response = gpt.chat_completion(
         [
-            Message(
-                role="user",
+            UserMessage(
                 content=[ContentPartText(prompt), ContentPartImage(image_url)],
             ),
         ],

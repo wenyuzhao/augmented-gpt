@@ -8,6 +8,7 @@ from . import LLMBackend, ModelOptions
 from ..tools import ToolRegistry
 
 from ..message import (
+    AssistantMessage,
     Message,
     MessageStream,
     ToolCall,
@@ -59,7 +60,7 @@ class OpenAIBackend(LLMBackend):
     @override
     async def _chat_completion_request(
         self, messages: list[Message], stream: Literal[False]
-    ) -> Message: ...
+    ) -> AssistantMessage: ...
 
     @overload
     @override
@@ -70,7 +71,7 @@ class OpenAIBackend(LLMBackend):
     @override
     async def _chat_completion_request(
         self, messages: list[Message], stream: bool
-    ) -> Message | MessageStream:
+    ) -> AssistantMessage | MessageStream:
         msgs: list[ChatCompletionMessageParam] = [
             self.__message_to_ccmp(m) for m in messages
         ]
@@ -133,11 +134,11 @@ class OpenAIBackend(LLMBackend):
             )
         raise RuntimeError("Unreachable")
 
-    def __ccm_to_message(self, m: ChatCompletionMessage) -> "Message":
-        return Message(
-            role=m.role,
+    def __ccm_to_message(self, m: ChatCompletionMessage) -> "AssistantMessage":
+        assert m.role == "assistant"
+        assert m.function_call is None
+        return AssistantMessage(
             content=m.content,
-            name=m.function_call.name if m.function_call is not None else None,
             tool_calls=(
                 [
                     ToolCall(
@@ -178,9 +179,9 @@ class ChatMessageStream(MessageStream):
     ):
         self.__response = response
         self.__aiter = response.__aiter__()
-        self.__message = Message(role="assistant")
+        self.__message = AssistantMessage()
         self.__tool_calls: list[ChoiceDeltaToolCall] = []
-        self.__final_message: Message | None = None
+        self.__final_message: AssistantMessage | None = None
 
     def __get_final_merged_tool_calls(self) -> list[ToolCall]:
         return [
@@ -234,8 +235,6 @@ class ChatMessageStream(MessageStream):
             self.__message.content += delta.content
         if delta.tool_calls is not None:
             self.__merge_tool_calls(delta.tool_calls)
-        if delta.role is not None:
-            self.__message.role = delta.role
         return delta.content or ""
 
     async def __anext__(self) -> str:
@@ -247,7 +246,7 @@ class ChatMessageStream(MessageStream):
     def __aiter__(self) -> AsyncIterator[str]:
         return self
 
-    async def wait_for_completion(self) -> Message:
+    async def wait_for_completion(self) -> AssistantMessage:
         if self.__final_message is not None:
             return self.__final_message
         async for _ in self:

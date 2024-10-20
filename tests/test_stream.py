@@ -1,4 +1,4 @@
-from agentia import Agent, Message, tool
+from agentia import Agent, UserMessage, tool
 from typing import Literal, Annotated
 import pytest
 import dotenv
@@ -24,7 +24,7 @@ def get_current_weather(
 async def test_function_call():
     gpt = Agent(model="openai/gpt-4o-mini", tools=[get_current_weather])
     response = gpt.chat_completion(
-        [Message(role="user", content="What is the weather like in boston?")],
+        [UserMessage(content="What is the weather like in boston?")],
         stream=True,
     )
     all_assistant_content = ""
