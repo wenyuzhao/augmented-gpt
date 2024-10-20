@@ -94,6 +94,9 @@ class OpenRouterBackend(LLMBackend):
             return ChatMessageStream(response)
         else:
             response = await self.client.chat.completions.create(**args, stream=False)
+            if response.choices is None:
+                print(response)
+                raise RuntimeError("response.choices is None")
             return self.__ccm_to_message(response.choices[0].message)
 
     def __message_to_ccmp(self, m: Message) -> ChatCompletionMessageParam:

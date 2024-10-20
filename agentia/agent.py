@@ -41,6 +41,7 @@ ToolCallEventListener = Callable[[ToolCallEvent], Any]
 
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
+
 @dataclass
 class ChatCompletion(Generic[M]):
     def __init__(self, agen: AsyncGenerator[M, None]) -> None:
@@ -73,14 +74,25 @@ class ChatCompletion(Generic[M]):
     def __await__(self):
         return self.__await_impl().__await__()
 
-    async def dump(self):
+    async def dump(self, name: str | None = None):
         async for msg in self.__agen:
             if isinstance(msg, Message):
+                if name:
+                    print(f"[{name}] ", end="", flush=True)
                 print(msg.content)
             if isinstance(msg, MessageStream):
+                name_printed = False
+                outputed = False
                 async for delta in msg:
-                    print(delta, end="")
-                print()
+                    if delta == "":
+                        continue
+                    if not name_printed and name:
+                        print(f"[{name}] ", end="", flush=True)
+                        name_printed = True
+                    outputed = True
+                    print(delta, end="", flush=True)
+                if outputed:
+                    print()
 
 
 AGENT_COUNTER = 0
@@ -131,6 +143,7 @@ class Agent:
         self.__user_consent_handler: UserConsentHandler | None = None
         self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
+        self.__dump_communication: bool = False
 
         if colleagues is not None:
             self.__init_cooperation(colleagues)
@@ -201,10 +214,18 @@ class Agent:
             ],
         ):
             self.log.info(f"COMMUNICATE {leader.name} -> {agent}: {repr(message)}")
+
+            if leader.__dump_communication:
+                print(f"[{leader.name} -> {agent}] {message}")
             target = self.colleagues[agent]
-            job_message = f"This is a job assigned to you by {leader.name} ({leader.description}):\n\n{message}"
             response = target.chat_completion(
-                [Message(role="user", content=job_message)]
+                [
+                    Message(
+                        role="system",
+                        content=f"You've received a message from {leader.name} ({leader.description})",
+                    ),
+                    Message(role="user", content=message),
+                ]
             )
             results = []
             async for m in response:
@@ -213,6 +234,8 @@ class Agent:
                         f"RESPONSE {leader.name} <- {agent}: {repr(m.content)}"
                     )
                     results.append(m.to_json())
+                    if leader.__dump_communication:
+                        print(f"[{leader.name} <- {agent}] {m.content}")
             return results
 
         self.__backend.tools._add_dispatch_tool(communiate)
@@ -270,3 +293,20 @@ class Agent:
     @property
     def tools(self) -> "ToolRegistry":
         return self.__backend.tools
+
+    async def __repl_impl(self):
+        self.__dump_communication = True
+        while True:
+            try:
+                prompt = input("> ").strip()
+                if prompt == "exit" or prompt == "quit":
+                    break
+            except EOFError:
+                break
+            response = self.chat_completion(
+                [Message(role="user", content=prompt)], stream=True
+            )
+            await response.dump(name=self.name)
+
+    def repl(self):
+        asyncio.run(self.__repl_impl())
