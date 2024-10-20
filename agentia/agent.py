@@ -117,7 +117,6 @@ class Agent:
         colleagues: list["Agent"] | None = None,
     ):
         from .llm import LLMBackend, ModelOptions
-        from .llm.openrouter import OpenRouterBackend
         from .tools import ToolRegistry
 
         global AGENT_COUNTER
@@ -130,13 +129,31 @@ class Agent:
         if debug:
             self.log.setLevel(logging.DEBUG)
         model = model or DEFAULT_MODEL
-        self.__backend: LLMBackend = OpenRouterBackend(
-            model=model,
-            tools=ToolRegistry(self, tools),
-            options=options or ModelOptions(),
-            instructions=instructions,
-            api_key=api_key,
-        )
+        if ":" in model:
+            provider = model.split(":")[0]
+            model = model.split(":")[1]
+        else:
+            provider = "openrouter"
+        if provider == "openai":
+            from .llm.openai import OpenAIBackend
+
+            self.__backend: LLMBackend = OpenAIBackend(
+                model=model,
+                tools=ToolRegistry(self, tools),
+                options=options or ModelOptions(),
+                instructions=instructions,
+                api_key=api_key,
+            )
+        else:
+            from .llm.openrouter import OpenRouterBackend
+
+            self.__backend: LLMBackend = OpenRouterBackend(
+                model=model,
+                tools=ToolRegistry(self, tools),
+                options=options or ModelOptions(),
+                instructions=instructions,
+                api_key=api_key,
+            )
         self.name = name
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
@@ -178,6 +195,7 @@ class Agent:
 
     def on_tool_end(self, listener: Callable[[ToolCallEvent], Any]):
         self.__on_tool_end = listener
+        return listener
 
     async def _emit_tool_call_event(self, event: ToolCallEvent):
         async def call_listener(listener: ToolCallEventListener):

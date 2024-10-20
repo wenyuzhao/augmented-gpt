@@ -87,8 +87,7 @@ class OpenRouterBackend(LLMBackend):
                 args["tools"] = self.tools.to_json()
                 args["tool_choice"] = "auto"
             else:
-                args["functions"] = self.tools.to_json()
-                args["function_call"] = "auto"
+                raise NotImplementedError("Functions are not supported")
         if stream:
             response = await self.client.chat.completions.create(**args, stream=True)
             return ChatMessageStream(response)
@@ -105,11 +104,7 @@ class OpenRouterBackend(LLMBackend):
             assert isinstance(content, str)
             return ChatCompletionSystemMessageParam(role="system", content=content)
         # if m.role == Role.FUNCTION:
-        #     assert isinstance(content, str)
-        #     assert m.name is not None
-        #     return ChatCompletionFunctionMessageParam(
-        #         role="function", name=m.name, content=content
-        #     )
+        #     raise NotImplementedError("Function is not supported")
         if m.role == "tool":
             assert isinstance(content, str)
             assert m.tool_call_id is not None
