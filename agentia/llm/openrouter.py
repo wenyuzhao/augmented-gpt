@@ -9,7 +9,6 @@ from ..tools import ToolRegistry
 
 from ..message import (
     Message,
-    Role,
     MessageStream,
     ToolCall,
     FunctionCall,

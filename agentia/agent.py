@@ -39,6 +39,7 @@ class ToolCallEvent:
 
 ToolCallEventListener = Callable[[ToolCallEvent], Any]
 
+DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 @dataclass
 class ChatCompletion(Generic[M]):
@@ -95,7 +96,7 @@ class Agent:
         self,
         name: str | None = None,
         description: str | None = None,
-        model: str = "openai/gpt-4o",
+        model: Annotated[str | None, f"Default to {DEFAULT_MODEL}"] = None,
         tools: Optional["Tools"] = None,
         options: Optional["ModelOptions"] = None,
         api_key: str | None = None,
@@ -116,6 +117,7 @@ class Agent:
         self.log = MSG_LOGGER.getChild(name)
         if debug:
             self.log.setLevel(logging.DEBUG)
+        model = model or DEFAULT_MODEL
         self.__backend: LLMBackend = OpenRouterBackend(
             model=model,
             tools=ToolRegistry(self, tools),
@@ -132,6 +134,11 @@ class Agent:
 
         if colleagues is not None:
             self.__init_cooperation(colleagues)
+
+    @staticmethod
+    def set_default_model(model: str):
+        global DEFAULT_MODEL
+        DEFAULT_MODEL = model
 
     @staticmethod
     def init_logging(level: int = logging.INFO):
@@ -177,36 +184,38 @@ class Agent:
         # Add a tool to dispatch a job to one colleague
         agent_names = [agent.name for agent in self.colleagues.values()]
         leader = self
-        description = "Dispatch a job to a agent. Note that the agent does not have any context expect what you explicitly told them, so give them the job details as precise and as much as possible. Agents cannot contact each other, please coordinate the jobs between them properly by yourself to complete the whole task. Here are a list of agents with their description:\n"
+        description = "Send a message or dispatch a job to a agent. Note that the agent does not have any context expect what you explicitly told them, so give them the details as precise and as much as possible. Agents cannot contact each other, please coordinate the jobs and information between them properly by yourself when necessary. Here are a list of agents with their description:\n"
         for agent in self.colleagues.values():
             description += f" * {agent.name}: {agent.description}\n"
 
         from .decorators import tool
 
-        @tool(description=description)
-        async def dispatch_job(
+        @tool(name="_communiate", description=description)
+        async def communiate(
             agent: Annotated[
                 Annotated[str, agent_names],
-                "The name of the agent to dispatch the job to.",
+                "The name of the agent to communicate with. This must be one of the provided colleague names.",
             ],
-            job: Annotated[str, "The job to ask the agent to do."],
+            message: Annotated[
+                str, "The message to send to the agent, or the job details."
+            ],
         ):
-            self.log.info(f"DISPATCH {leader.name} -> {agent}: {repr(job)}")
+            self.log.info(f"COMMUNICATE {leader.name} -> {agent}: {repr(message)}")
             target = self.colleagues[agent]
-            job_message = f"This is a job assigned to you by {leader.name} ({leader.description}):\n\n{job}"
+            job_message = f"This is a job assigned to you by {leader.name} ({leader.description}):\n\n{message}"
             response = target.chat_completion(
                 [Message(role="user", content=job_message)]
             )
             results = []
-            async for message in response:
-                if isinstance(message, Message):
+            async for m in response:
+                if isinstance(m, Message):
                     self.log.info(
-                        f"RESPONSE {leader.name} <- {agent}: {repr(message.content)}"
+                        f"RESPONSE {leader.name} <- {agent}: {repr(m.content)}"
                     )
-                    results.append(message.to_json())
+                    results.append(m.to_json())
             return results
 
-        self.__backend.tools._add_dispatch_tool(dispatch_job)
+        self.__backend.tools._add_dispatch_tool(communiate)
 
     def __init_cooperation(self, colleagues: list["Agent"]):
         # Leader can dispatch jobs to colleagues
