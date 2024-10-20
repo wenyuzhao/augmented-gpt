@@ -72,6 +72,15 @@ class ChatCompletion(Generic[M]):
     def __await__(self):
         return self.__await_impl().__await__()
 
+    async def dump(self):
+        async for msg in self.__agen:
+            if isinstance(msg, Message):
+                print(msg.content)
+            if isinstance(msg, MessageStream):
+                async for delta in msg:
+                    print(delta, end="")
+                print()
+
 
 AGENT_COUNTER = 0
 
@@ -123,6 +132,13 @@ class Agent:
 
         if colleagues is not None:
             self.__init_cooperation(colleagues)
+
+    @staticmethod
+    def init_logging(level: int = logging.INFO):
+        """Initialize logging with a set of pre-defined rules."""
+        from . import init_logging
+
+        init_logging(level)
 
     async def request_for_user_consent(self, message: str) -> bool:
         if self.__user_consent_handler is not None:
