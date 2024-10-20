@@ -222,7 +222,7 @@ class Agent:
                 [
                     Message(
                         role="system",
-                        content=f"You've received a message from {leader.name} ({leader.description})",
+                        content=f"{leader.name} is directly talking to you right now. ({leader.name}: {leader.description})",
                     ),
                     Message(role="user", content=message),
                 ]
