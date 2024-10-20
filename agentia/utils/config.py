@@ -65,6 +65,7 @@ def __load_agent_from_config(
         instructions=config.get("instructions"),
         colleagues=colleagues,
     )
+    agent.original_config = config
     pending.remove(file.stem)
     agents[file.stem] = agent
     return agent

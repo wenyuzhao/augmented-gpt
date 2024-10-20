@@ -161,6 +161,7 @@ class Agent:
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
         self._dump_communication: bool = False
         self.context: Any = None
+        self.original_config: Any = None
 
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
@@ -326,4 +327,4 @@ class Agent:
     ):
         from .utils.config import load_agent_from_config
 
-        load_agent_from_config(config, resolver)
+        return load_agent_from_config(config, resolver)
