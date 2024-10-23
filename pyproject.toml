@@ -1,9 +1,8 @@
 [tool.poetry]
 name = "agentia"
-version = "0.4.0"
-description = "ChatGPT API wrapper, argumented with functions"
-# documentation = "https://github.com/wenyuzhao/augmented-gpt"
-authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+version = "0.0.1"
+description = "ChatGPT powered agents, argumented with tools"
+authors = ["Wenyu Zhao <wenyuzhaox@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/wenyuzhao/augmented-gpt"
