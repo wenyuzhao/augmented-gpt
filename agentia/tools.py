@@ -53,7 +53,7 @@ class ToolInfo:
 class ToolRegistry:
     def __init__(self, agent: "Agent", tools: Tools | None = None) -> None:
         self.__functions: dict[str, ToolInfo] = {}
-        self.__plugins: Any = {}
+        self.__plugins: dict[str, Plugin] = {}
         self._agent = agent
         for t in tools or []:
             if inspect.isfunction(t):
@@ -62,6 +62,10 @@ class ToolRegistry:
                 self.__add_plugin(t)
         names = ", ".join([f"{k}" for k in self.__functions.keys()])
         self._agent.log.debug(f"Registered Tools: {names}")
+
+    async def init(self):
+        for p in self.__plugins.values():
+            await p.init()
 
     def _add_dispatch_tool(self, f: Callable[..., Any]):
         return self.__add_function(f)
@@ -177,7 +181,7 @@ class ToolRegistry:
             clsname = clsname[:-6]
         self.__plugins[clsname] = p
         # Call the plugin's register method
-        p.register(self._agent)
+        p._register(self._agent)
 
     def get_plugin(self, name: str) -> Plugin:
         return self.__plugins[name]

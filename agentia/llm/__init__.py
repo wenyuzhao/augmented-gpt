@@ -79,9 +79,13 @@ class LLMBackend:
         self, messages: list[Message], stream: bool = False
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         if stream:
-            return ChatCompletion(self.__chat_completion(messages, stream=True))
+            return ChatCompletion(
+                self.tools._agent, self.__chat_completion(messages, stream=True)
+            )
         else:
-            return ChatCompletion(self.__chat_completion(messages, stream=False))
+            return ChatCompletion(
+                self.tools._agent, self.__chat_completion(messages, stream=False)
+            )
 
     async def _on_new_chat_message(self, msg: Message):
         await self.tools.on_new_chat_message(msg)

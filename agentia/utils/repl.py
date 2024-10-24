@@ -4,7 +4,8 @@ from agentia.message import Message, UserMessage
 from agentia.utils.config import load_agent_from_config
 
 
-async def run_async(agent: Agent):
+async def __run_async(agent: Agent):
+    await agent.init()
     agent._dump_communication = True
     while True:
         try:
@@ -28,4 +29,4 @@ def run(agent: Agent | str):
     for a in all_agents:
         a.on_tool_start(tool_start)
 
-    asyncio.run(run_async(agent))
+    asyncio.run(__run_async(agent))

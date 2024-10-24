@@ -13,6 +13,7 @@ from typing import (
     overload,
     TYPE_CHECKING,
 )
+import shelve
 
 from agentia import MSG_LOGGER
 
@@ -46,22 +47,26 @@ DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 @dataclass
 class ChatCompletion(Generic[M]):
-    def __init__(self, agen: AsyncGenerator[M, None]) -> None:
+    def __init__(self, agent: "Agent", agen: AsyncGenerator[M, None]) -> None:
         super().__init__()
         self.__agen = agen
+        self.__agent = agent
 
     async def __anext__(self) -> M:
+        await self.__agent.init()
         return await self.__agen.__anext__()
 
     def __aiter__(self):
         return self
 
     async def messages(self) -> AsyncGenerator[M, None]:
+        await self.__agent.init()
         async for event in self:
             if isinstance(event, Message) or isinstance(event, MessageStream):
                 yield event
 
     async def __await_impl(self) -> str:
+        await self.__agent.init()
         last_message = ""
         async for msg in self.__agen:
             if isinstance(msg, Message):
@@ -77,6 +82,7 @@ class ChatCompletion(Generic[M]):
         return self.__await_impl().__await__()
 
     async def dump(self, name: str | None = None):
+        await self.__agent.init()
         async for msg in self.__agen:
             if isinstance(msg, Message):
                 if name:
@@ -166,6 +172,14 @@ class Agent:
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
 
+        self.__is_initialized = False
+        self.cache_file = Path.cwd() / ".cache" / f"{name.lower()}"
+        if not self.cache_file.parent.exists():
+            self.cache_file.parent.mkdir(parents=True)
+
+    def open_cache(self):
+        return shelve.open(self.cache_file)
+
     @staticmethod
     def set_default_model(model: str):
         global DEFAULT_MODEL
@@ -177,6 +191,14 @@ class Agent:
         from . import init_logging
 
         init_logging(level)
+
+    async def init(self):
+        if self.__is_initialized:
+            return
+        self.__is_initialized = True
+        await self.__backend.tools.init()
+        for c in self.colleagues.values():
+            await c.init()
 
     async def request_for_user_consent(self, message: str) -> bool:
         if self.__user_consent_handler is not None:
