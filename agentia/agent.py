@@ -14,6 +14,8 @@ from typing import (
     TYPE_CHECKING,
 )
 import shelve
+import uuid
+import rich
 
 from agentia import MSG_LOGGER
 
@@ -37,10 +39,19 @@ class ToolCallEvent:
     id: str
     function: FunctionCall
     result: Any | None = None
-    type: Literal["tool"] = "tool"
+
+
+@dataclass
+class CommunicationEvent:
+    id: str
+    parent: "Agent"
+    child: "Agent"
+    message: str
+    response: str | None = None
 
 
 ToolCallEventListener = Callable[[ToolCallEvent], Any]
+CommunicationEventListener = Callable[[CommunicationEvent], Any]
 
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
@@ -81,12 +92,16 @@ class ChatCompletion(Generic[M]):
     def __await__(self):
         return self.__await_impl().__await__()
 
-    async def dump(self, name: str | None = None):
+    async def dump(self):
         await self.__agent.init()
+
+        def print_name_and_icon(name: str, icon: str | None):
+            name_and_icon = f"[{icon} {name}]" if icon else f"[{name}]"
+            rich.print(f"[bold blue]{name_and_icon}[/bold blue]")
+
         async for msg in self.__agen:
             if isinstance(msg, Message):
-                if name:
-                    print(f"[{name}] ", end="", flush=True)
+                print_name_and_icon(self.__agent.name, self.__agent.icon)
                 print(msg.content)
             if isinstance(msg, MessageStream):
                 name_printed = False
@@ -94,8 +109,8 @@ class ChatCompletion(Generic[M]):
                 async for delta in msg:
                     if delta == "":
                         continue
-                    if not name_printed and name:
-                        print(f"[{name}] ", end="", flush=True)
+                    if not name_printed:
+                        print_name_and_icon(self.__agent.name, self.__agent.icon)
                         name_printed = True
                     outputed = True
                     print(delta, end="", flush=True)
@@ -112,6 +127,7 @@ class Agent:
     def __init__(
         self,
         name: str | None = None,
+        icon: str | None = None,
         description: str | None = None,
         model: Annotated[str | None, f"Default to {DEFAULT_MODEL}"] = None,
         tools: Optional["Tools"] = None,
@@ -130,6 +146,7 @@ class Agent:
         if name is None:
             name = f"Agent#{id}"
 
+        self.icon = icon
         self.log = MSG_LOGGER.getChild(name)
         if debug:
             self.log.setLevel(logging.DEBUG)
@@ -165,7 +182,8 @@ class Agent:
         self.__user_consent_handler: UserConsentHandler | None = None
         self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
-        self._dump_communication: bool = False
+        self.__on_communication_start: Callable[[CommunicationEvent], Any] | None = None
+        self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
 
@@ -220,6 +238,14 @@ class Agent:
         self.__on_tool_end = listener
         return listener
 
+    def on_commuication_start(self, listener: Callable[[CommunicationEvent], Any]):
+        self.__on_communication_start = listener
+        return listener
+
+    def on_commuication_end(self, listener: Callable[[CommunicationEvent], Any]):
+        self.__on_communication_end = listener
+        return listener
+
     async def _emit_tool_call_event(self, event: ToolCallEvent):
         async def call_listener(listener: ToolCallEventListener):
             result = listener(event)
@@ -230,6 +256,17 @@ class Agent:
             await call_listener(self.__on_tool_start)
         if event.result is not None and self.__on_tool_end is not None:
             await call_listener(self.__on_tool_end)
+
+    async def _emit_communication_event(self, event: CommunicationEvent):
+        async def call_listener(listener: CommunicationEventListener):
+            result = listener(event)
+            if asyncio.iscoroutine(result):
+                await result
+
+        if event.response is None and self.__on_communication_start is not None:
+            await call_listener(self.__on_communication_start)
+        if event.response is not None and self.__on_communication_end is not None:
+            await call_listener(self.__on_communication_end)
 
     def __add_colleague(self, colleague: "Agent"):
         if colleague.name in self.colleagues:
@@ -256,9 +293,11 @@ class Agent:
         ):
             self.log.info(f"COMMUNICATE {leader.name} -> {agent}: {repr(message)}")
 
-            if leader._dump_communication:
-                print(f"[{leader.name} -> {agent}] {message}")
             target = self.colleagues[agent]
+            cid = uuid.uuid4().hex
+            await self._emit_communication_event(
+                CommunicationEvent(id=cid, parent=leader, child=target, message=message)
+            )
             response = target.chat_completion(
                 [
                     SystemMessage(
@@ -275,8 +314,15 @@ class Agent:
                     )
                     # results.append(m.to_json())
                     last_message = m.content
-                    if leader._dump_communication:
-                        print(f"[{leader.name} <- {agent}] {m.content}")
+                    await self._emit_communication_event(
+                        CommunicationEvent(
+                            id=cid,
+                            parent=leader,
+                            child=target,
+                            message=message,
+                            response=m.content,
+                        )
+                    )
             return last_message
 
         self.__backend.tools._add_dispatch_tool(communiate)

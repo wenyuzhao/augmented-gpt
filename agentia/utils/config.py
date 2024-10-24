@@ -59,6 +59,7 @@ def __load_agent_from_config(
 
     agent = Agent(
         name=config.get("name"),
+        icon=config.get("icon"),
         description=config.get("description"),
         model=config.get("model"),
         tools=tools,
