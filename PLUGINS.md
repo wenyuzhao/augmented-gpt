@@ -5,8 +5,7 @@
 
 ## `code` - Python code runner
 
-
-## `clock` - Clock and timer functions
+## `clock` - Get current time and date
 
 ## `mstodo` - Python code runner
 

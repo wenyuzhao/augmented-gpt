@@ -32,14 +32,8 @@ class Plugin:
     def on_new_chat_message(self, msg: Message) -> Any: ...
 
 
-class ClockPlugin(Plugin):
-    @tool
-    def get_current_time(self):
-        """Get the current time in ISO format"""
-        return datetime.datetime.now().isoformat()
-
-
 from .calc import *
+from .clock import *
 from .code import *
 from .mstodo import *
 
