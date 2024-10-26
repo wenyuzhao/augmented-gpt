@@ -17,6 +17,11 @@ def repl(agent: str):
     agentia.utils.repl.run(agent)
 
 
+@app.command(help="Start the API server")
+def serve(agent: str):
+    agentia.utils.server.run(agent)
+
+
 @app.command(help="Start GPTs action server")
 def gpts(agent: str, access_code: Annotated[str | None, "The access code"] = None):
     a = Agent.load_from_config(agent)
