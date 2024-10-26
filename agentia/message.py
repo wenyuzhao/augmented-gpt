@@ -130,7 +130,6 @@ class BaseMessage(abc.ABC):
                         ]
                     ),
                     name=data.get("name"),
-                    files=data.get("files"),
                 )
             case "system":
                 return SystemMessage(content=data["content"])
@@ -166,9 +165,6 @@ class UserMessage(BaseMessage):
     Function return data is provided in the `content` field.
     """
 
-    files: Sequence[Path | str] | None = None
-    """The files that will be sent with the message. Only valid for user messages with assistant api."""
-
     role: Literal["user"] = "user"
 
     @override
@@ -183,8 +179,6 @@ class UserMessage(BaseMessage):
         }
         if self.name is not None:
             data["name"] = self.name
-        if self.files is not None:
-            data["files"] = [str(f) for f in self.files]
         return data
 
 
