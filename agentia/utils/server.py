@@ -7,6 +7,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+import rich
 import uvicorn
 
 from agentia.agent import Agent, CommunicationEvent, ToolCallEvent
@@ -188,6 +189,11 @@ def run(agent: str):
         known_tokens = {token} if isinstance(token, str) else set(token)
     else:
         known_tokens = set()
+
+    if len(known_tokens) == 0:
+        rich.print(
+            "[bold red]WARNING: No access code provided, API server will be open to the public.[/bold red]"
+        )
 
     def get_token(authorization: Annotated[str | None, Header()] = None) -> str | None:
         if len(known_tokens) == 0:
