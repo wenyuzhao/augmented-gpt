@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 from typing import Annotated
+import rich
 import typer
 import agentia.utils
 from agentia.agent import Agent
@@ -23,9 +24,11 @@ def serve(agent: str):
 
 
 @app.command(help="Start GPTs action server")
-def gpts(agent: str, access_code: Annotated[str | None, "The access code"] = None):
+def gpts(agent: str):
     a = Agent.load_from_config(agent)
-    access_code = access_code or a.original_config.get("access_code")
+    access_code = a.original_config.get("access_code")
+    if access_code is None:
+        rich.print("[bold red]WARNING: No access code provided.[/bold red]")
     token_storage = Path.cwd() / ".cache" / "gpts" / "tokens.json"
     if not token_storage.parent.exists():
         token_storage.parent.mkdir(parents=True)
