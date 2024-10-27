@@ -5,7 +5,12 @@ from pathlib import Path
 from agentia.agent import Agent
 from agentia.plugins import ALL_PLUGINS
 
-AGENTS_FOLDERS = [Path.cwd(), Path.cwd() / "agents"]
+AGENTS_FOLDERS = [
+    Path.cwd(),
+    Path.cwd() / "agents",
+    Path.cwd() / ".agents",
+    Path.home() / ".config" / "agentia" / "agents",
+]
 
 
 def default_resolver(id: str) -> Path:
