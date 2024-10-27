@@ -1,5 +1,12 @@
-from typing import Any
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import Annotated, Any
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Header,
+    WebSocket,
+    WebSocketDisconnect,
+)
 import uvicorn
 
 from agentia.agent import Agent, CommunicationEvent, ToolCallEvent
@@ -177,17 +184,37 @@ def run(agent: str):
 
     agent_instance = Agent.load_from_config(agent)
 
+    if token := agent_instance.original_config.get("access_code"):
+        known_tokens = {token} if isinstance(token, str) else set(token)
+    else:
+        known_tokens = set()
+
+    def get_token(authorization: Annotated[str | None, Header()] = None) -> str | None:
+        if len(known_tokens) == 0:
+            return None
+        token = (
+            None
+            if authorization is None or not authorization.startswith("Bearer ")
+            else authorization[7:]
+        )
+        if token is None or token not in known_tokens:
+            raise HTTPException(
+                status_code=401, detail="Bearer token missing or unknown"
+            )
+        return token
+
     @app.get("/")
-    async def get_agent_info():
+    async def get_agent_info(token: str | None = Depends(get_token)):
         return {
             "name": agent_instance.name,
             "icon": agent_instance.icon,
             "description": agent_instance.original_config.get("description"),
             "tools": list(agent_instance.original_config.get("tools", {}).keys()),
+            "colleagues": [c.name for c in agent_instance.colleagues.values()],
         }
 
     @app.websocket("/chat")
-    async def chat(websocket: WebSocket):
+    async def chat(websocket: WebSocket, token: str | None = Depends(get_token)):
         try:
             await __chat_server(agent, websocket)
         except WebSocketDisconnect as e:
