@@ -20,6 +20,12 @@ class History:
         # TODO: auto trim history
         self.__messages.append(message)
 
+    def set_messages(self, messages: list[Message]):
+        self.__messages = messages
+
+    def get_messages(self) -> list[Message]:
+        return self.__messages
+
     def get_raw_messages(self) -> Any:
         return [m.to_json() for m in self.__messages]
 

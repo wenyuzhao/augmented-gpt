@@ -331,11 +331,6 @@ class Agent:
         # Leader can dispatch jobs to colleagues
         for colleague in colleagues:
             self.__add_colleague(colleague)
-        # Colleagues can communicate with each other
-        # for i in range(len(colleagues)):
-        #     for j in range(i + 1, len(colleagues)):
-        #         colleagues[i].__add_colleague(colleagues[j])
-        #         colleagues[j].__add_colleague(colleagues[i])
 
     def reset(self):
         self.__backend.reset()
