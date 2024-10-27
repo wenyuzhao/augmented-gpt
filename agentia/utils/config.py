@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable
 import yaml
 from pathlib import Path
 
@@ -25,7 +25,11 @@ def default_resolver(id: str) -> Path:
 
 
 def __load_agent_from_config(
-    id: str, pending: set[str], agents: dict[str, Agent], resolver=default_resolver
+    id: str,
+    pending: set[str],
+    agents: dict[str, Agent],
+    parent_tool_configs: dict[str, Any],
+    resolver: Callable[[str], Path | None],
 ):
     """Load a bot from a configuration file"""
     file = resolver(id)
@@ -41,6 +45,7 @@ def __load_agent_from_config(
 
     # Create tools
     tools = []
+    tool_configs = {}
     if "tools" in config:
         if not isinstance(config["tools"], dict):
             raise ValueError("Invalid tools configuration: must be a dictionary")
@@ -48,13 +53,18 @@ def __load_agent_from_config(
             if name not in ALL_PLUGINS:
                 raise ValueError(f"Unknown tool: {name}")
             Plugin = ALL_PLUGINS[name]
+            if c is None and name in parent_tool_configs:
+                c = parent_tool_configs[name]
+            tool_configs[name] = c
             tools.append(Plugin(config=c or {}))
 
     # Load colleagues
     colleagues = []
     if "colleagues" in config:
-        for colleague_id in config["colleagues"]:
-            colleague = __load_agent_from_config(colleague_id, pending, agents)
+        for cid in config["colleagues"]:
+            colleague = __load_agent_from_config(
+                cid, pending, agents, tool_configs, resolver
+            )
             colleagues.append(colleague)
 
     agent = Agent(
@@ -77,5 +87,5 @@ def load_agent_from_config(
 ):
     """Load a bot from a configuration file"""
     return __load_agent_from_config(
-        id, set(), dict(), resolver=resolver or default_resolver
+        id, set(), dict(), parent_tool_configs={}, resolver=resolver or default_resolver
     )
