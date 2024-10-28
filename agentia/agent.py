@@ -376,14 +376,19 @@ class Agent:
 
         @tool(name="_file_search")
         async def file_search(
-            query: Annotated[
-                str, "The query to search for files in the knowledge base."
-            ]
+            query: Annotated[str, "The query to search for files"],
+            filename: Annotated[
+                str | None,
+                "The optional filename of the file to search from. If not provided, search from all files.",
+            ] = None,
         ):
-            """"""
-            self.log.info(f"FILE-SEARCH {query}")
+            """Similarity-based search for related file segments in the knowledge base"""
+            if filename is None:
+                agent.log.info(f"FILE-SEARCH {query}")
+            else:
+                agent.log.info(f"FILE-SEARCH {query} ({filename})")
             assert agent.__knowledge_base is not None
-            response = await agent.__knowledge_base.query(query)
+            response = await agent.__knowledge_base.query(query, filename)
             return response
 
         self.__backend.tools._add_file_search_tool(file_search)
@@ -422,10 +427,12 @@ class Agent:
             return self.__backend.chat_completion(messages, stream=False)
 
     def __load_files(self, messages: list[Message]):
+        old_messages = [m for m in messages]
+        messages.clear()
         files: list[BytesIO] = []
-        filenames = []
-        for m in messages:
+        for m in old_messages:
             if isinstance(m, UserMessage) and m.files:
+                filenames = []
                 for file in m.files:
                     if isinstance(file, str) or isinstance(file, Path):
                         with open(file, "rb") as f:
@@ -449,12 +456,15 @@ class Agent:
                         f = BytesIO(file.getvalue().encode())
                         f.name = f.name
                         files.append(f)
+                messages.append(
+                    SystemMessage(f"UPLOADED-FILES: {', '.join(filenames)}")
+                )
+            messages.append(m)
         if len(files) == 0:
             return
         if self.__knowledge_base is None:
             raise ValueError("Knowledge base is disabled.")
         self.__knowledge_base.add_documents(files)
-        messages.append(SystemMessage(f"UPLOADED-FILES: {', '.join(filenames)}"))
 
     @property
     def history(self) -> History:
