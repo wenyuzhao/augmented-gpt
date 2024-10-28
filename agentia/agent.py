@@ -140,6 +140,7 @@ class Agent:
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
         knowledge_base: KnowledgeBase | bool | None = None,
+        persist_session: bool = False,
     ):
         from .llm import LLMBackend, ModelOptions
         from .tools import ToolRegistry
@@ -150,7 +151,7 @@ class Agent:
         self.name = name
 
         self.id = slugify(name.lower())
-        self.instance_id = self.id + "-" + str(uuid.uuid4())
+        self.session_id = self.id + "-" + str(uuid.uuid4())
 
         self.icon = icon
         self.log = MSG_LOGGER.getChild(self.id)
@@ -184,6 +185,7 @@ class Agent:
             )
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
+        # Event listeners
         self.__user_consent_handler: UserConsentHandler | None = None
         self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
@@ -191,17 +193,18 @@ class Agent:
         self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
-        self.agent_data_dir = Path.cwd() / ".cache" / "agents" / f"{self.id}"
-        self.session_data_dir = (
-            Path.cwd() / ".cache" / "sessions" / f"{self.instance_id}"
+        self.agent_data_folder = Path.cwd() / ".cache" / "agents" / f"{self.id}"
+        self.session_data_folder = (
+            Path.cwd() / ".cache" / "sessions" / f"{self.session_id}"
         )
+        self.persist_session = persist_session
 
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
 
         if knowledge_base is True:
             self.__knowledge_base = KnowledgeBase(
-                self.session_data_dir / "knowledge-base"
+                self.session_data_folder / "knowledge-base"
             )
         elif isinstance(knowledge_base, KnowledgeBase):
             self.__knowledge_base = knowledge_base
@@ -212,21 +215,22 @@ class Agent:
             self.__init_knowledge_base()
 
         self.__is_initialized = False
-        if not self.agent_data_dir.exists():
-            self.agent_data_dir.mkdir(parents=True)
-        if not self.session_data_dir.exists():
-            self.session_data_dir.mkdir(parents=True)
+        if not self.agent_data_folder.exists():
+            self.agent_data_folder.mkdir(parents=True)
+        if not self.session_data_folder.exists():
+            self.session_data_folder.mkdir(parents=True)
 
-        weakref.finalize(self, self.__sweeper, self.instance_id)
+        if not persist_session:
+            weakref.finalize(self, Agent.__sweeper, self.session_id)
 
     @staticmethod
-    def __sweeper(id: str):
-        session_dir = Path.cwd() / ".cache" / "sessions" / f"{id}"
+    def __sweeper(session_id: str):
+        session_dir = Path.cwd() / ".cache" / "sessions" / f"{session_id}"
         if session_dir.exists():
             shutil.rmtree(session_dir)
 
     def open_configs_file(self):
-        cache_file = self.agent_data_dir / "configs"
+        cache_file = self.agent_data_folder / "configs"
         return shelve.open(cache_file)
 
     @staticmethod
@@ -366,11 +370,15 @@ class Agent:
     def __init_knowledge_base(self):
         if self.__knowledge_base is None:
             return
-
-        (self.agent_data_dir / "docs").mkdir(parents=True, exist_ok=True)
-        files = self.__knowledge_base.load_documents_in_folder(
-            self.agent_data_dir / "docs"
+        # Load global documents
+        docs = self.agent_data_folder / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        files, index = KnowledgeBase.compute_and_load_global_index(
+            docs, self.agent_data_folder / "docs.index"
         )
+        if index is not None:
+            self.__knowledge_base.set_global_index(index)
+
         if len(files) > 0:
             self.history.add(SystemMessage(f"FILES: {', '.join(files)}"))
 
@@ -399,12 +407,6 @@ class Agent:
 
     def reset(self):
         self.__backend.reset()
-
-    def set_raw_history(self, history: Any):
-        self.__backend.get_history().set_raw_messages(history)
-
-    def get_raw_history(self) -> Any:
-        return self.__backend.get_history().get_raw_messages()
 
     def get_plugin(self, name: str) -> "Plugin":
         return self.__backend.tools.get_plugin(name)

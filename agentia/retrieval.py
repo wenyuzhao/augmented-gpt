@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+import shelve
 import chromadb
 from llama_index.core.query_engine import CitationQueryEngine
 from llama_index.core import VectorStoreIndex
@@ -17,8 +18,9 @@ class FilteredRetriever(BaseRetriever):
         super().__init__()
         self.vector_index = vector_index
         self.file = file
+        self.global_index: VectorStoreIndex | None = None
 
-    def _get_retriever(self) -> BaseRetriever:
+    def _get_retriever(self) -> tuple[BaseRetriever, BaseRetriever | None]:
         if self.file:
             filters = MetadataFilters(
                 filters=[
@@ -30,22 +32,41 @@ class FilteredRetriever(BaseRetriever):
         retriever = VectorIndexRetriever(
             index=self.vector_index, similarity_top_k=16, filters=filters
         )
-        return retriever
+        global_retriever = None
+        if self.global_index is not None:
+            global_retriever = VectorIndexRetriever(
+                index=self.global_index, similarity_top_k=16, filters=None
+            )
+        return retriever, global_retriever
 
     async def _aretrieve(self, query_bundle: QueryBundle):
-        retriever = self._get_retriever()
-        vector_nodes = await retriever.aretrieve(query_bundle)
+        retriever, global_retriever = self._get_retriever()
+        local_nodes = await retriever.aretrieve(query_bundle)
+        if global_retriever:
+            global_nodes = await global_retriever.aretrieve(query_bundle)
+        else:
+            global_nodes = []
         # print([n.node.metadata.get("file_name") for n in vector_nodes])
-        return vector_nodes
+        return sorted(
+            [*local_nodes, *global_nodes], key=lambda x: x.score, reverse=True
+        )
 
     def _retrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
-        retriever = self._get_retriever()
+        retriever, global_retriever = self._get_retriever()
         vector_nodes = retriever.retrieve(query_bundle)
-        return vector_nodes
+        if global_retriever:
+            global_nodes = global_retriever.retrieve(query_bundle)
+        else:
+            global_nodes = []
+        return sorted(
+            [*vector_nodes, *global_nodes], key=lambda x: x.score, reverse=True
+        )
 
 
 class KnowledgeBase:
     def __init__(self, id: str | Path):
+        """Initialize an empty knowledge base. If the given ID or save path already exists, it will be loaded."""
+
         if "OPENAI_API_KEY" not in os.environ:
             raise ValueError("OPENAI_API_KEY must be set to enable the knowledge base")
 
@@ -61,12 +82,62 @@ class KnowledgeBase:
             chroma_collection=chroma_client.get_or_create_collection("vector_store")
         )
         self.__index = VectorStoreIndex.from_vector_store(vector_store)
+        self.__retriever = FilteredRetriever(vector_index=self.__index, file=None)
         self.__query_engine = CitationQueryEngine.from_args(
             self.__index,
             similarity_top_k=16,
             citation_chunk_size=1024,
-            retriever=FilteredRetriever(vector_index=self.__index, file=None),
+            retriever=self.__retriever,
         )
+
+    def set_global_index(self, index: VectorStoreIndex):
+        self.__retriever.global_index = index
+
+    @staticmethod
+    def compute_and_load_global_index(
+        docs_path: Path, index_path: Path
+    ) -> tuple[list[str], VectorStoreIndex | None]:
+        # Collect all the files
+        files = {
+            f.name: f
+            for f in docs_path.iterdir()
+            if f.is_file() and KnowledgeBase.is_file_supported(f.suffix)
+        }
+        (index_path).mkdir(parents=True, exist_ok=True)
+        all_files = list(files.keys())
+        with shelve.open(index_path / "indexed_files") as g:
+            print(dict(g))
+            del_files = []
+            for f in g:
+                if f not in files:
+                    del_files.append(f)
+                if f in files and g[f] >= files[f].stat().st_mtime:
+                    del files[f]
+            for f in del_files:
+                del g[f]
+        # Index the files
+        chroma_client = chromadb.PersistentClient(path=str(index_path / "vector_store"))
+        vector_store = ChromaVectorStore(
+            chroma_collection=chroma_client.get_or_create_collection("vector_store")
+        )
+        index = VectorStoreIndex.from_vector_store(vector_store)
+        # Add files
+        if len(files) > 0:
+            print(f"Indexing {len(files)} files")
+            docs = SimpleDirectoryReader(
+                input_files=[str(f) for f in files.values()],
+                exclude_hidden=False,
+            ).load_data()
+            for d in docs:
+                index.insert(d)
+        # Remove files
+        for f in del_files:
+            raise NotImplementedError("Delete files from the index")
+        # Update the global files
+        with shelve.open(index_path / "indexed_files") as g:
+            for f in files:
+                g[f] = files[f].stat().st_mtime
+        return all_files, index
 
     @staticmethod
     def is_file_supported(file_ext: str) -> bool:
@@ -96,7 +167,7 @@ class KnowledgeBase:
 
     async def query(self, query: str, file: str | None) -> str:
         """Query the knowledge base"""
-        self.__query_engine.retriever.file = file  # type: ignore
+        self.__retriever.file = file
         response = await self.__query_engine.aquery(query)
         formatted_response = response.response + "\n\n\nSOURCES:\n\n"
         for i, node in enumerate(response.source_nodes):
