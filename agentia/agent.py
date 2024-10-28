@@ -368,7 +368,11 @@ class Agent:
             return
 
         (self.agent_data_dir / "docs").mkdir(parents=True, exist_ok=True)
-        self.__knowledge_base.load_documents_in_folder(self.agent_data_dir / "docs")
+        files = self.__knowledge_base.load_documents_in_folder(
+            self.agent_data_dir / "docs"
+        )
+        if len(files) > 0:
+            self.history.add(SystemMessage(f"FILES: {', '.join(files)}"))
 
         agent = self
 

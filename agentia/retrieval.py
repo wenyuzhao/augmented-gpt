@@ -35,7 +35,7 @@ class FilteredRetriever(BaseRetriever):
     async def _aretrieve(self, query_bundle: QueryBundle):
         retriever = self._get_retriever()
         vector_nodes = await retriever.aretrieve(query_bundle)
-        print([n.node.metadata.get("file_name") for n in vector_nodes])
+        # print([n.node.metadata.get("file_name") for n in vector_nodes])
         return vector_nodes
 
     def _retrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
