@@ -3,6 +3,7 @@ from enum import Enum, StrEnum
 import inspect
 from inspect import Parameter
 import json
+import types
 from typing import (
     Annotated,
     Any,
@@ -89,10 +90,10 @@ class ToolRegistry:
                 t = str  # the default type is string
             # Get parameter optionality
             param_t_is_opt = False
-            is_optional = lambda t: (
-                get_origin(t) == Union
-                and len(get_args(t)) == 2
-                and type(None) in get_args(t)
+            is_optional = lambda x: (
+                (get_origin(x) is Union or get_origin(x) is types.UnionType)
+                and len(get_args(x)) == 2
+                and type(None) in get_args(x)
             )
             if is_optional(t):
                 t, param_t_is_opt = get_args(t)[0], True
