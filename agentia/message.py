@@ -1,3 +1,4 @@
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import (
     AsyncIterator,
@@ -164,6 +165,8 @@ class UserMessage(BaseMessage):
     Used for function messages to indicate the name of the function that was called.
     Function return data is provided in the `content` field.
     """
+
+    files: Sequence[str | Path | BytesIO | StringIO] = field(default_factory=list)
 
     role: Literal["user"] = "user"
 

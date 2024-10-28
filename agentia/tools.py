@@ -70,6 +70,9 @@ class ToolRegistry:
     def _add_dispatch_tool(self, f: Callable[..., Any]):
         return self.__add_function(f)
 
+    def _add_file_search_tool(self, f: Callable[..., Any]):
+        return self.__add_function(f)
+
     def __add_function(self, f: Callable[..., Any]):
         fname = getattr(f, NAME_TAG, f.__name__)
         params: Any = {"type": "object", "properties": {}, "required": []}

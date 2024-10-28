@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import shutil
 from typing import (
     Annotated,
     Callable,
@@ -16,8 +17,12 @@ from typing import (
 import shelve
 import uuid
 import rich
+from slugify import slugify
+import weakref
+import uuid
 
 from agentia import MSG_LOGGER
+from agentia.retrieval import KnowledgeBase
 
 from .message import *
 from .history import History
@@ -118,15 +123,13 @@ class ChatCompletion(Generic[M]):
                     print()
 
 
-AGENT_COUNTER = 0
-
 UserConsentHandler = Callable[[str], bool | Coroutine[Any, Any, bool]]
 
 
 class Agent:
     def __init__(
         self,
-        name: str | None = None,
+        name: str,
         icon: str | None = None,
         description: str | None = None,
         model: Annotated[str | None, f"Default to {DEFAULT_MODEL}"] = None,
@@ -136,18 +139,21 @@ class Agent:
         instructions: str | None = None,
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
+        knowledge_base: KnowledgeBase | bool | None = None,
     ):
         from .llm import LLMBackend, ModelOptions
         from .tools import ToolRegistry
 
-        global AGENT_COUNTER
-        id = AGENT_COUNTER
-        AGENT_COUNTER += 1
-        if name is None:
-            name = f"Agent#{id}"
+        name = name.strip()
+        if name == "":
+            raise ValueError("Agent name cannot be empty.")
+        self.name = name
+
+        self.id = slugify(name.lower())
+        self.instance_id = self.id + "-" + str(uuid.uuid4())
 
         self.icon = icon
-        self.log = MSG_LOGGER.getChild(name)
+        self.log = MSG_LOGGER.getChild(self.id)
         if debug:
             self.log.setLevel(logging.DEBUG)
         model = model or DEFAULT_MODEL
@@ -176,7 +182,6 @@ class Agent:
                 instructions=instructions,
                 api_key=api_key,
             )
-        self.name = name
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
         self.__user_consent_handler: UserConsentHandler | None = None
@@ -186,17 +191,43 @@ class Agent:
         self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
+        self.agent_data_dir = Path.cwd() / ".cache" / "agents" / f"{self.id}"
+        self.session_data_dir = (
+            Path.cwd() / ".cache" / "sessions" / f"{self.instance_id}"
+        )
 
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
 
-        self.__is_initialized = False
-        self.cache_file = Path.cwd() / ".cache" / f"{name.lower()}"
-        if not self.cache_file.parent.exists():
-            self.cache_file.parent.mkdir(parents=True)
+        if knowledge_base is True:
+            self.__knowledge_base = KnowledgeBase(
+                self.session_data_dir / "knowledge-base"
+            )
+        elif isinstance(knowledge_base, KnowledgeBase):
+            self.__knowledge_base = knowledge_base
+        else:
+            self.__knowledge_base = None
 
-    def open_cache(self):
-        return shelve.open(self.cache_file)
+        if self.__knowledge_base is not None:
+            self.__init_knowledge_base()
+
+        self.__is_initialized = False
+        if not self.agent_data_dir.exists():
+            self.agent_data_dir.mkdir(parents=True)
+        if not self.session_data_dir.exists():
+            self.session_data_dir.mkdir(parents=True)
+
+        weakref.finalize(self, self.__sweeper, self.instance_id)
+
+    @staticmethod
+    def __sweeper(id: str):
+        session_dir = Path.cwd() / ".cache" / "sessions" / f"{id}"
+        if session_dir.exists():
+            shutil.rmtree(session_dir)
+
+    def open_configs_file(self):
+        cache_file = self.agent_data_dir / "configs"
+        return shelve.open(cache_file)
 
     @staticmethod
     def set_default_model(model: str):
@@ -332,6 +363,31 @@ class Agent:
         for colleague in colleagues:
             self.__add_colleague(colleague)
 
+    def __init_knowledge_base(self):
+        if self.__knowledge_base is None:
+            return
+
+        (self.agent_data_dir / "docs").mkdir(parents=True, exist_ok=True)
+        self.__knowledge_base.load_documents_in_folder(self.agent_data_dir / "docs")
+
+        agent = self
+
+        from .decorators import tool
+
+        @tool(name="_file_search")
+        async def file_search(
+            query: Annotated[
+                str, "The query to search for files in the knowledge base."
+            ]
+        ):
+            """"""
+            self.log.info(f"FILE-SEARCH {query}")
+            assert agent.__knowledge_base is not None
+            response = await agent.__knowledge_base.query(query)
+            return response
+
+        self.__backend.tools._add_file_search_tool(file_search)
+
     def reset(self):
         self.__backend.reset()
 
@@ -359,10 +415,46 @@ class Agent:
         messages: list[Message],
         stream: bool = False,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
+        self.__load_files(messages)
         if stream:
             return self.__backend.chat_completion(messages, stream=True)
         else:
             return self.__backend.chat_completion(messages, stream=False)
+
+    def __load_files(self, messages: list[Message]):
+        files: list[BytesIO] = []
+        filenames = []
+        for m in messages:
+            if isinstance(m, UserMessage) and m.files:
+                for file in m.files:
+                    if isinstance(file, str) or isinstance(file, Path):
+                        with open(file, "rb") as f:
+                            f = BytesIO(f.read())
+                            f.name = str(file)
+                            files.append(f)
+                            filenames.append(str(file))
+                    elif isinstance(file, BytesIO):
+                        files.append(file)
+                        if not file.name:
+                            raise ValueError(
+                                "File name is required for BytesIO objects."
+                            )
+                        filenames.append(file.name)
+                    elif isinstance(file, StringIO):
+                        if not file.name:
+                            raise ValueError(
+                                "File name is required for StringIO objects."
+                            )
+                        filenames.append(file.name)
+                        f = BytesIO(file.getvalue().encode())
+                        f.name = f.name
+                        files.append(f)
+        if len(files) == 0:
+            return
+        if self.__knowledge_base is None:
+            raise ValueError("Knowledge base is disabled.")
+        self.__knowledge_base.add_documents(files)
+        messages.append(SystemMessage(f"UPLOADED-FILES: {', '.join(filenames)}"))
 
     @property
     def history(self) -> History:

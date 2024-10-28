@@ -21,7 +21,7 @@ class MSToDoPlugin(Plugin):
         client_id = self.config.get("client_id")
         client_secret = self.config.get("client_secret")
 
-        with self.agent.open_cache() as cache:
+        with self.agent.open_configs_file() as cache:
             token = None
             key = self.cache_key + ".token"
             if key in cache:
