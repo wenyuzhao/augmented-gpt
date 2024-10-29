@@ -15,7 +15,7 @@ class MemoryPlugin(Plugin):
         content: Annotated[str, "The content to remember. Keep it short and brief."],
     ):
         """Permanently remember something in your memory, as long as you think it's important or will be useful in the future. Use this to remember any important information whilst you are chatting with the user or fulfilling tasks."""
-        with FileLock(self.__momery_cache / ".lock"):
+        with FileLock(str(self.__momery_cache) + ".lock"):
             time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(self.__momery_cache, "a") as f:
                 f.write(f"[{time}] {content}\n")
