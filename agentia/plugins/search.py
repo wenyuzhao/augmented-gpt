@@ -31,9 +31,9 @@ class SearchPlugin(Plugin):
         username = self.config.get("username")
         password = self.config.get("password")
         if not username:
-            raise ValueError("username is required")
+            raise ValueError("DataForSEO Serp API username is required")
         if not password:
-            raise ValueError("password is required")
+            raise ValueError("DataForSEO Serp API password is required")
         self.__country = self.config.get("country", "Australia")
         if self.__country not in _ALL_COUNTRIES:
             raise ValueError(f"Invalid country: {self.__country}")
