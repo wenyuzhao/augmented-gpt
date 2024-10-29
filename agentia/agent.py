@@ -193,16 +193,16 @@ class Agent:
             self.__init_cooperation(colleagues)
         # Init knowledge base (Step 1)
         if knowledge_base is True:
-            self.__knowledge_base = KnowledgeBase(
+            self.knowledge_base = KnowledgeBase(
                 self.session_data_folder / "knowledge-base"
             )
         elif isinstance(knowledge_base, KnowledgeBase):
-            self.__knowledge_base = knowledge_base
+            self.knowledge_base = knowledge_base
         elif isinstance(knowledge_base, str):
-            self.__knowledge_base = KnowledgeBase(knowledge_base)
+            self.knowledge_base = KnowledgeBase(knowledge_base)
         else:
-            self.__knowledge_base = None
-        if self.__knowledge_base is not None:
+            self.knowledge_base = None
+        if self.knowledge_base is not None:
             self.__init_knowledge_base()
         # Init memory
         self.__init_memory()
@@ -389,14 +389,14 @@ class Agent:
             self.__add_colleague(colleague)
 
     def __init_knowledge_base(self):
-        if self.__knowledge_base is None:
+        if self.knowledge_base is None:
             return
         # Load global documents
         docs = self.agent_data_folder / "knowledge-base" / "docs"
         docs.mkdir(parents=True, exist_ok=True)
         global_vector_store = VectorStore(self.agent_data_folder / "knowledge-base")
         if len(global_vector_store.initial_files or []) > 0:
-            self.__knowledge_base.add_vector_store("global", global_vector_store)
+            self.knowledge_base.add_vector_store("global", global_vector_store)
             files = global_vector_store.initial_files or []
             if self.__instructions is not None:
                 self.__instructions += f"\n\nFILES: {', '.join(files)}"
@@ -420,8 +420,8 @@ class Agent:
                 agent.log.info(f"FILE-SEARCH {query}")
             else:
                 agent.log.info(f"FILE-SEARCH {query} ({filename})")
-            assert agent.__knowledge_base is not None
-            response = await agent.__knowledge_base.query(query, filename)
+            assert agent.knowledge_base is not None
+            response = await agent.knowledge_base.query(query, filename)
             return response
 
         self.__tools._add_file_search_tool(file_search)
@@ -508,9 +508,9 @@ class Agent:
             messages.append(m)
         if len(files) == 0:
             return
-        if self.__knowledge_base is None:
+        if self.knowledge_base is None:
             raise ValueError("Knowledge base is disabled.")
-        self.__knowledge_base.add_documents(files)
+        self.knowledge_base.add_documents(files)
 
     @property
     def history(self) -> History:

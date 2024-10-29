@@ -38,6 +38,9 @@ from .code import *
 from .memory import *
 from .mstodo import *
 from .search import *
+from .dalle import *
+from .vision import *
+from .web import *
 
 
 ALL_PLUGINS: dict[str, Type[Plugin]] = {
@@ -47,4 +50,7 @@ ALL_PLUGINS: dict[str, Type[Plugin]] = {
     "mstodo": MSToDoPlugin,
     "memory": MemoryPlugin,
     "search": SearchPlugin,
+    "dalle": DallEPlugin,
+    "vision": VisionPlugin,
+    "web": WebPlugin,
 }

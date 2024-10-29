@@ -33,6 +33,7 @@ llama-index-vector-stores-chroma = "^0.2.1"
 python-slugify = "^8.0.4"
 tiktoken = "^0.8.0"
 dataforseo-client = "^1.0.34"
+markdownify = "^0.13.1"
 
 
 [tool.poetry.group.dev.dependencies]
