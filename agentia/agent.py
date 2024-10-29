@@ -445,19 +445,21 @@ class Agent:
 
     @overload
     def chat_completion(
-        self, messages: Sequence[Message], stream: Literal[False] = False
+        self, messages: Sequence[Message] | str, stream: Literal[False] = False
     ) -> ChatCompletion[AssistantMessage]: ...
 
     @overload
     def chat_completion(
-        self, messages: Sequence[Message], stream: Literal[True]
+        self, messages: Sequence[Message] | str, stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
-        messages: Sequence[Message],
+        messages: Sequence[Message] | str,
         stream: bool = False,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
+        if isinstance(messages, str):
+            messages = [UserMessage(messages)]
         self.__load_files(messages)
         if stream:
             return self.__backend.chat_completion(messages, stream=True)

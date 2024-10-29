@@ -242,7 +242,10 @@ class ToolRegistry:
                 case Parameter.POSITIONAL_ONLY if p.annotation == Agent:
                     p_args.append(self._agent)
                 case Parameter.POSITIONAL_ONLY:
-                    p_args.append(args[p.name] if p.name in args else p.default)
+                    default = (
+                        p.default if p.default != inspect.Parameter.empty else None
+                    )
+                    p_args.append(args[p.name] if p.name in args else default)
                 case (
                     Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY
                 ) if p.annotation == Agent:
@@ -252,7 +255,10 @@ class ToolRegistry:
                         # kw_args[p.name] = context
                         raise ValueError(f"__context__ is not supported")
                     else:
-                        kw_args[p.name] = args[p.name] if p.name in args else p.default
+                        default = (
+                            p.default if p.default != inspect.Parameter.empty else None
+                        )
+                        kw_args[p.name] = args[p.name] if p.name in args else default
                 case other:
                     raise ValueError(f"{other} is not supported")
         return p_args, kw_args
