@@ -36,12 +36,12 @@ if TYPE_CHECKING:
 
 M = TypeVar("M", AssistantMessage, MessageStream)
 
-__global_cache_dir = None
+_global_cache_dir = None
 
 
 def _get_global_cache_dir() -> Path:
-    global __global_cache_dir
-    return __global_cache_dir or (Path.cwd() / ".cache")
+    global _global_cache_dir
+    return _global_cache_dir or (Path.cwd() / ".cache")
 
 
 @dataclass
@@ -249,8 +249,8 @@ class Agent:
 
     @staticmethod
     def set_global_cache_dir(path: Path):
-        global __global_cache_dir
-        __global_cache_dir = path
+        global _global_cache_dir
+        _global_cache_dir = path
         path.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
