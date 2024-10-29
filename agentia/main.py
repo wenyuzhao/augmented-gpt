@@ -10,6 +10,8 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
     context_settings=dict(help_option_names=["-h", "--help"]),
+    pretty_exceptions_short=True,
+    pretty_exceptions_show_locals=False,
 )
 
 

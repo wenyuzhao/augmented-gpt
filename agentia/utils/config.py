@@ -26,7 +26,7 @@ def __get_config_path(cwd: Path, id: str):
             p = cwd / p
         if p.exists():
             return p.resolve()
-    raise FileNotFoundError(f"Agent not found: {id}")
+    raise FileNotFoundError(f"Agent config not found: {id}")
 
 
 def __create_tools(
@@ -98,13 +98,13 @@ def load_agent_from_config(name: str | Path) -> Agent:
     """Load a bot from a configuration file"""
     if isinstance(name, Path):
         if not name.exists():
-            raise FileNotFoundError(f"Agent not found: {name}")
+            raise FileNotFoundError(f"Agent config not found: {name}")
         config_path = name.resolve()
     elif name.endswith(".yaml") or name.endswith(".yml"):
         # name is also a path
         config_path = Path(name)
         if not config_path.exists() or not config_path.is_file():
-            raise FileNotFoundError(f"Agent not found: {name}")
+            raise FileNotFoundError(f"Agent config not found: {name}")
         config_path = config_path.resolve()
     elif (s := Path(name).suffix) and s not in [".yaml", ".yml"]:
         raise ValueError(f"Invalid agent path: {name}")
@@ -121,5 +121,5 @@ def load_agent_from_config(name: str | Path) -> Agent:
                 config_path = file
                 break
         if config_path is None:
-            raise FileNotFoundError(f"Agent not found: {name}")
+            raise FileNotFoundError(f"Agent config not found: {name}")
     return __load_agent_from_config(config_path, set(), dict(), parent_tool_configs={})
