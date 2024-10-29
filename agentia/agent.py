@@ -238,6 +238,12 @@ class Agent:
         if session_dir.exists():
             shutil.rmtree(session_dir)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.__sweeper(self.session_id)
+
     def open_configs_file(self):
         cache_file = self.agent_data_folder / "configs"
         return shelve.open(cache_file)
