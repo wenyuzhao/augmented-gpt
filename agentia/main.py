@@ -25,11 +25,13 @@ def serve(agent: str):
 
 @app.command(help="Start GPTs action server")
 def gpts(agent: str):
+    from agentia.agent import _get_global_cache_dir
+
     a = Agent.load_from_config(agent)
     access_code = a.original_config.get("access_code")
     if access_code is None:
         rich.print("[bold red]WARNING: No access code provided.[/bold red]")
-    token_storage = Path.cwd() / ".cache" / "gpts" / "tokens.json"
+    token_storage = _get_global_cache_dir() / "gpts" / "tokens.json"
     if not token_storage.parent.exists():
         token_storage.parent.mkdir(parents=True)
     asyncio.run(

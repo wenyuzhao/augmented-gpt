@@ -36,6 +36,13 @@ if TYPE_CHECKING:
 
 M = TypeVar("M", AssistantMessage, MessageStream)
 
+__global_cache_dir = None
+
+
+def _get_global_cache_dir() -> Path:
+    global __global_cache_dir
+    return __global_cache_dir or (Path.cwd() / ".cache")
+
 
 @dataclass
 class ToolCallEvent:
@@ -172,9 +179,9 @@ class Agent:
         self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
-        self.agent_data_folder = Path.cwd() / ".cache" / "agents" / f"{self.id}"
+        self.agent_data_folder = _get_global_cache_dir() / "agents" / f"{self.id}"
         self.session_data_folder = (
-            Path.cwd() / ".cache" / "sessions" / f"{self.session_id}"
+            _get_global_cache_dir() / "sessions" / f"{self.session_id}"
         )
         self.agent_data_folder.mkdir(parents=True, exist_ok=True)
         self.session_data_folder.mkdir(parents=True, exist_ok=True)
@@ -227,7 +234,7 @@ class Agent:
 
     @staticmethod
     def __sweeper(session_id: str):
-        session_dir = Path.cwd() / ".cache" / "sessions" / f"{session_id}"
+        session_dir = _get_global_cache_dir() / "sessions" / f"{session_id}"
         if session_dir.exists():
             shutil.rmtree(session_dir)
 
@@ -239,6 +246,12 @@ class Agent:
     def set_default_model(model: str):
         global DEFAULT_MODEL
         DEFAULT_MODEL = model
+
+    @staticmethod
+    def set_global_cache_dir(path: Path):
+        global __global_cache_dir
+        __global_cache_dir = path
+        path.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def init_logging(level: int = logging.INFO):

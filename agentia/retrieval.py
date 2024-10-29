@@ -133,7 +133,9 @@ class KnowledgeBase:
             raise ValueError("OPENAI_API_KEY must be set to enable the knowledge base")
 
         if isinstance(id, str):
-            persist_dir = Path.cwd() / ".cache" / "knowledge-base" / id
+            from agentia.agent import _get_global_cache_dir
+
+            persist_dir = _get_global_cache_dir() / "knowledge-base" / id
         else:
             persist_dir = id
         persist_dir.mkdir(parents=True, exist_ok=True)
