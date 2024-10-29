@@ -12,6 +12,7 @@ from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilt
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.retrievers import BaseRetriever, VectorIndexRetriever
 from filelock import FileLock
+import logging
 
 TOP_K = 16
 
@@ -65,7 +66,7 @@ class VectorStore:
                 self.index.delete_nodes(nodes_to_remove)
             # Index new files
             if len(files) > 0:
-                print(f"Indexing {len(files)} files")
+                logging.info(f"Indexing {len(files)} files")
                 docs = SimpleDirectoryReader(
                     input_files=[str(f) for f in files.values()],
                     exclude_hidden=False,

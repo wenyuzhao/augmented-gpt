@@ -151,7 +151,7 @@ async def vision(image: str | Path, prompt: str, api_key: str | None = None) -> 
             image_url = (
                 f"data:image/{ext};base64,{base64.b64encode(f.read()).decode('utf-8')}"
             )
-    gpt = Agent(model="gpt-4o-mini", api_key=api_key)
+    gpt = Agent(model="gpt-4o-mini", api_key=api_key, name="Vision")
     response = gpt.chat_completion(
         [
             UserMessage(

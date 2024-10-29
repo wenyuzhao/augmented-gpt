@@ -82,7 +82,7 @@ def __load_agent_from_config(
         tools=tools,
         instructions=config.get("instructions"),
         colleagues=colleagues,
-        knowledge_base=knowledge_base if isinstance(knowledge_base, str) else None,
+        knowledge_base=knowledge_base if isinstance(knowledge_base, str) else True,
     )
     agent.original_config = config
     pending.remove(file.stem)
