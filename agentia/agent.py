@@ -432,17 +432,17 @@ class Agent:
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self, messages: Sequence[Message], stream: Literal[False] = False
     ) -> ChatCompletion[AssistantMessage]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: Sequence[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
         self,
-        messages: list[Message],
+        messages: Sequence[Message],
         stream: bool = False,
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         self.__load_files(messages)
@@ -451,9 +451,9 @@ class Agent:
         else:
             return self.__backend.chat_completion(messages, stream=False)
 
-    def __load_files(self, messages: list[Message]):
+    def __load_files(self, messages: Sequence[Message]):
         old_messages = [m for m in messages]
-        messages.clear()
+        messages = []
         files: list[BytesIO] = []
         for m in old_messages:
             if isinstance(m, UserMessage) and m.files:

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from logging import Logger
-from typing import Any, AsyncGenerator, Literal, overload
+from typing import Any, AsyncGenerator, Literal, Sequence, overload
 
 from ..tools import ToolRegistry
 from ..message import AssistantMessage, Message, MessageStream
@@ -59,16 +59,16 @@ class LLMBackend:
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self, messages: Sequence[Message], stream: Literal[False] = False
     ) -> ChatCompletion[AssistantMessage]: ...
 
     @overload
     def chat_completion(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: Sequence[Message], stream: Literal[True]
     ) -> ChatCompletion[MessageStream]: ...
 
     def chat_completion(
-        self, messages: list[Message], stream: bool = False
+        self, messages: Sequence[Message], stream: bool = False
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         if stream:
             return ChatCompletion(
@@ -89,25 +89,27 @@ class LLMBackend:
 
     @overload
     async def _chat_completion_request(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: Sequence[Message], stream: Literal[True]
     ) -> MessageStream: ...
 
     async def _chat_completion_request(
-        self, messages: list[Message], stream: bool
+        self, messages: Sequence[Message], stream: bool
     ) -> Message | MessageStream:
         raise NotImplementedError
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[False] = False
+        self, messages: Sequence[Message], stream: Literal[False] = False
     ) -> AsyncGenerator[AssistantMessage, None]: ...
 
     @overload
     async def __chat_completion(
-        self, messages: list[Message], stream: Literal[True] = True
+        self, messages: Sequence[Message], stream: Literal[True] = True
     ) -> AsyncGenerator[MessageStream, None]: ...
 
-    async def __chat_completion(self, messages: list[Message], stream: bool = False):
+    async def __chat_completion(
+        self, messages: Sequence[Message], stream: bool = False
+    ):
         for m in messages:
             self.log.info(f"{m}")
             self.history.add(m)

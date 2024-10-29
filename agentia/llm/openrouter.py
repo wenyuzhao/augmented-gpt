@@ -1,6 +1,6 @@
 import json
 import os
-from typing import AsyncIterator, Literal, Any, overload, override
+from typing import AsyncIterator, Literal, Any, Sequence, overload, override
 
 from agentia.history import History
 
@@ -64,18 +64,18 @@ class OpenRouterBackend(LLMBackend):
     @overload
     @override
     async def _chat_completion_request(
-        self, messages: list[Message], stream: Literal[False]
+        self, messages: Sequence[Message], stream: Literal[False]
     ) -> AssistantMessage: ...
 
     @overload
     @override
     async def _chat_completion_request(
-        self, messages: list[Message], stream: Literal[True]
+        self, messages: Sequence[Message], stream: Literal[True]
     ) -> MessageStream: ...
 
     @override
     async def _chat_completion_request(
-        self, messages: list[Message], stream: bool
+        self, messages: Sequence[Message], stream: bool
     ) -> AssistantMessage | MessageStream:
         msgs: list[ChatCompletionMessageParam] = [
             self.__message_to_ccmp(m) for m in messages
