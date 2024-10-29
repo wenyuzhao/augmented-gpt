@@ -41,10 +41,15 @@ def __create_tools(
             if name not in ALL_PLUGINS:
                 raise ValueError(f"Unknown tool: {name}")
             PluginCls = ALL_PLUGINS[name]
+            if not (c is None or isinstance(c, dict)):
+                raise ValueError(
+                    f"Invalid config for tool {name}: must be a dict or null"
+                )
             if c is None and name in parent_tool_configs:
                 c = parent_tool_configs[name]
+            c = c or {}
             tool_configs[name] = c
-            tools.append(PluginCls(config=c or {}))
+            tools.append(PluginCls(config=c))
     return tools, tool_configs
 
 
