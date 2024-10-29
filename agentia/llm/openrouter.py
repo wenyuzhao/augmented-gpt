@@ -2,6 +2,8 @@ import json
 import os
 from typing import AsyncIterator, Literal, Any, overload, override
 
+from agentia.history import History
+
 from .. import MSG_LOGGER
 
 from . import LLMBackend, ModelOptions
@@ -47,10 +49,10 @@ class OpenRouterBackend(LLMBackend):
         model: str,
         tools: ToolRegistry,
         options: ModelOptions,
-        instructions: str | None,
+        history: History,
         api_key: str | None = None,
     ) -> None:
-        super().__init__(model, tools, options, instructions)
+        super().__init__(model, tools, options, history)
         api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable is not set")

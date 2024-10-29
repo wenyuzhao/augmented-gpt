@@ -199,7 +199,8 @@ class Agent:
             self.__init_knowledge_base()
         # Init memory
         self.__init_memory()
-        # Init backend
+        # Init history and backend
+        self.__history = History(instructions=self.__instructions)
         if provider == "openai":
             from .llm.openai import OpenAIBackend
 
@@ -207,7 +208,7 @@ class Agent:
                 model=model,
                 tools=self.__tools,
                 options=options or ModelOptions(),
-                instructions=self.__instructions,
+                history=self.__history,
                 api_key=api_key,
             )
         else:
@@ -217,7 +218,7 @@ class Agent:
                 model=model,
                 tools=self.__tools,
                 options=options or ModelOptions(),
-                instructions=self.__instructions,
+                history=self.__history,
                 api_key=api_key,
             )
 
@@ -424,7 +425,7 @@ class Agent:
             self.__instructions += f"\n\nYOUR PREVIOUS MEMORY: \n{content}"
 
     def reset(self):
-        self.__backend.reset()
+        self.history.reset()
 
     def get_plugin(self, name: str) -> Optional["Plugin"]:
         return self.__tools.get_plugin(name)
@@ -492,7 +493,7 @@ class Agent:
 
     @property
     def history(self) -> History:
-        return self.__backend.get_history()
+        return self.__history
 
     @property
     def model(self) -> str:

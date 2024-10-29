@@ -49,21 +49,13 @@ class LLMBackend:
         model: str,
         tools: ToolRegistry,
         options: ModelOptions,
-        instructions: str | None,
+        history: History,
     ):
         self.options = options or ModelOptions()
         self.model = model
         self.tools = tools
-        self.instructions = instructions
-        self.history = History(instructions=instructions)
+        self.history = history
         self.log = tools._agent.log
-
-    def reset(self):
-        """Clear and reset all history"""
-        self.history.reset()
-
-    def get_history(self) -> History:
-        return self.history
 
     @overload
     def chat_completion(
@@ -116,45 +108,47 @@ class LLMBackend:
     ) -> AsyncGenerator[MessageStream, None]: ...
 
     async def __chat_completion(self, messages: list[Message], stream: bool = False):
-        history = [h for h in self.history.get()]
-        old_history_length = len(history)
-        history.extend(messages)
         for m in messages:
             self.log.info(f"{m}")
+            self.history.add(m)
             await self._on_new_chat_message(m)
         # First completion request
         message: AssistantMessage
+        trimmed_history = self.history.get_trimmed(keep_last=len(messages))
         if stream:
-            s = await self._chat_completion_request(history, stream=True)
+            s = await self._chat_completion_request(trimmed_history, stream=True)
             yield s
             message = await s.wait_for_completion()
         else:
-            message = await self._chat_completion_request(history, stream=False)
+            message = await self._chat_completion_request(trimmed_history, stream=False)
             if message.content is not None:
                 yield message
-        history.append(message)
+        self.history.add(message)
         self.log.info(f"{message}")
         await self._on_new_chat_message(message)
         # Run tools and submit results until convergence
         while len(message.tool_calls) > 0:
             # Run tools
+            count = 0
             async for event in self.tools.call_tools(message.tool_calls):
                 if isinstance(event, Message):
-                    history.append(event)
+                    self.history.add(event)
+                    count += 1
                 else:
                     yield event
+            trimmed_history = self.history.get_trimmed(keep_last=count + 1)
             # Submit results
             message: AssistantMessage
             if stream:
-                r = await self._chat_completion_request(history, stream=True)
+                r = await self._chat_completion_request(trimmed_history, stream=True)
                 yield r
                 message = await r.wait_for_completion()
             else:
-                message = await self._chat_completion_request(history, stream=False)
+                message = await self._chat_completion_request(
+                    trimmed_history, stream=False
+                )
                 if message.content is not None:
                     yield message
-            history.append(message)
+            self.history.add(message)
             self.log.info(f"{message}")
             await self._on_new_chat_message(message)
-        for h in history[old_history_length:]:
-            self.history.add(h)
