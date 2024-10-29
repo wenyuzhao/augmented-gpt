@@ -373,12 +373,9 @@ class Agent:
         # Load global documents
         docs = self.agent_data_folder / "docs"
         docs.mkdir(parents=True, exist_ok=True)
-        files, index = KnowledgeBase.compute_and_load_global_index(
+        files = self.__knowledge_base.load_global_docs_and_persist(
             docs, self.agent_data_folder / "docs.index"
         )
-        if index is not None:
-            self.__knowledge_base.set_global_index(index)
-
         if len(files) > 0:
             self.history.add(SystemMessage(f"FILES: {', '.join(files)}"))
 

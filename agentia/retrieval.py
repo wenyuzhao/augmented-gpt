@@ -11,6 +11,7 @@ from llama_index.core import QueryBundle
 from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilter
 from llama_index.core.schema import NodeWithScore
 from llama_index.core.retrievers import BaseRetriever, VectorIndexRetriever
+from filelock import FileLock
 
 
 class FilteredRetriever(BaseRetriever):
@@ -90,13 +91,16 @@ class KnowledgeBase:
             retriever=self.__retriever,
         )
 
-    def set_global_index(self, index: VectorStoreIndex):
+    def set_global_index(self, index: VectorStoreIndex | None):
         self.__retriever.global_index = index
 
-    @staticmethod
-    def compute_and_load_global_index(
-        docs_path: Path, index_path: Path
-    ) -> tuple[list[str], VectorStoreIndex | None]:
+    def load_global_docs_and_persist(
+        self, docs_path: Path, index_path: Path
+    ) -> list[str]:
+        """Create a vector store from the global documents. This also caches indices."""
+        indexed_files_path = index_path / "indexed_files"
+        vector_store_path = index_path / "vector_store"
+        lock_path = index_path / "lock"
         # Collect all the files
         files = {
             f.name: f
@@ -105,39 +109,53 @@ class KnowledgeBase:
         }
         (index_path).mkdir(parents=True, exist_ok=True)
         all_files = list(files.keys())
-        with shelve.open(index_path / "indexed_files") as g:
-            print(dict(g))
-            del_files = []
-            for f in g:
-                if f not in files:
-                    del_files.append(f)
-                if f in files and g[f] >= files[f].stat().st_mtime:
-                    del files[f]
-            for f in del_files:
-                del g[f]
-        # Index the files
-        chroma_client = chromadb.PersistentClient(path=str(index_path / "vector_store"))
-        vector_store = ChromaVectorStore(
-            chroma_collection=chroma_client.get_or_create_collection("vector_store")
-        )
-        index = VectorStoreIndex.from_vector_store(vector_store)
-        # Add files
-        if len(files) > 0:
-            print(f"Indexing {len(files)} files")
-            docs = SimpleDirectoryReader(
-                input_files=[str(f) for f in files.values()],
-                exclude_hidden=False,
-            ).load_data()
-            for d in docs:
-                index.insert(d)
-        # Remove files
-        for f in del_files:
-            raise NotImplementedError("Delete files from the index")
-        # Update the global files
-        with shelve.open(index_path / "indexed_files") as g:
-            for f in files:
-                g[f] = files[f].stat().st_mtime
-        return all_files, index
+        del_files: set[str] = set()
+        with FileLock(lock_path):
+            with shelve.open(indexed_files_path) as g:
+                for f in g:
+                    if f not in files:
+                        del_files.add(f)
+                    elif g[f] >= files[f].stat().st_mtime:  # not modified
+                        del files[f]
+                    else:  # file is modified
+                        del_files.add(f)
+            # Load vector store
+            chroma_client = chromadb.PersistentClient(path=str(vector_store_path))
+            vector_store = ChromaVectorStore(
+                chroma_collection=chroma_client.get_or_create_collection("vector_store")
+            )
+            index = VectorStoreIndex.from_vector_store(vector_store)
+            # Remove files
+            if len(del_files) > 0:
+                nodes = index.vector_store.get_nodes(None)
+                del_files_set = set(del_files)
+                nodes_to_remove = [
+                    n.node_id
+                    for n in nodes
+                    if n.metadata.get("file_name") in del_files_set
+                ]
+                index.delete_nodes(nodes_to_remove)
+            # Index new files
+            if len(files) > 0:
+                print(f"Indexing {len(files)} files")
+                docs = SimpleDirectoryReader(
+                    input_files=[str(f) for f in files.values()],
+                    exclude_hidden=False,
+                ).load_data()
+                for d in docs:
+                    index.insert(d)
+            # Update the global files
+            with shelve.open(indexed_files_path) as g:
+                for f in del_files:
+                    del g[f]
+                for f in files:
+                    g[f] = files[f].stat().st_mtime
+            # Set global index
+            if len(all_files) > 0:
+                self.set_global_index(index)
+            else:
+                self.set_global_index(None)
+            return all_files
 
     @staticmethod
     def is_file_supported(file_ext: str) -> bool:
