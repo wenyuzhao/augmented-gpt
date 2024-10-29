@@ -136,7 +136,7 @@ UserConsentHandler = Callable[[str], bool | Coroutine[Any, Any, bool]]
 class Agent:
     def __init__(
         self,
-        name: str,
+        name: str = "default",
         icon: str | None = None,
         description: str | None = None,
         model: Annotated[str | None, f"Default to {DEFAULT_MODEL}"] = None,

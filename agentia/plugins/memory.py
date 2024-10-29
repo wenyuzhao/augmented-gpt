@@ -2,6 +2,7 @@ from ..decorators import *
 from . import Plugin
 from typing import Annotated
 from datetime import datetime
+from filelock import FileLock
 
 
 class MemoryPlugin(Plugin):
@@ -14,10 +15,11 @@ class MemoryPlugin(Plugin):
         content: Annotated[str, "The content to remember. Keep it short and brief."],
     ):
         """Permanently remember something in your memory, as long as you think it's important or will be useful in the future. Use this to remember any important information whilst you are chatting with the user or fulfilling tasks."""
-        time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(self.__momery_cache, "a") as f:
-            f.write(f"[{time}] {content}\n")
-        self.log.info(f"REMEMBER: {content}")
+        with FileLock(self.__momery_cache):
+            time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.__momery_cache, "a") as f:
+                f.write(f"[{time}] {content}\n")
+            self.log.info(f"REMEMBER: {content}")
         return "Remembered"
 
     @tool
