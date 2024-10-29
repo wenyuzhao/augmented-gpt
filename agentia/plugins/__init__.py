@@ -37,6 +37,7 @@ from .clock import *
 from .code import *
 from .memory import *
 from .mstodo import *
+from .search import *
 
 
 ALL_PLUGINS: dict[str, Type[Plugin]] = {
@@ -45,4 +46,5 @@ ALL_PLUGINS: dict[str, Type[Plugin]] = {
     "code": CodePlugin,
     "mstodo": MSToDoPlugin,
     "memory": MemoryPlugin,
+    "search": SearchPlugin,
 }

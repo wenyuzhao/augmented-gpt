@@ -711,6 +711,23 @@ marshmallow = ">=3.18.0,<4.0.0"
 typing-inspect = ">=0.4.0,<1"
 
 [[package]]
+name = "dataforseo-client"
+version = "1.0.34"
+description = "DataForSEO API documentation"
+optional = false
+python-versions = "*"
+files = [
+    {file = "dataforseo_client-1.0.34-py3-none-any.whl", hash = "sha256:8f3730800b74c665d31c92763c7d90d323c691b0b923dcc392649546510e0df7"},
+    {file = "dataforseo_client-1.0.34.tar.gz", hash = "sha256:c5f145f4751e2e3f4dfe8c00dd42a67405120df5ab083a93bc5daaff42d25d69"},
+]
+
+[package.dependencies]
+pydantic = ">=2"
+python-dateutil = "*"
+typing-extensions = ">=4.7.1"
+urllib3 = ">=1.25.3,<2.1.0"
+
+[[package]]
 name = "debugpy"
 version = "1.8.6"
 description = "An implementation of the Debug Adapter Protocol for Python"
@@ -4630,18 +4647,18 @@ files = [
 
 [[package]]
 name = "urllib3"
-version = "2.2.3"
+version = "2.0.7"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7"
 files = [
-    {file = "urllib3-2.2.3-py3-none-any.whl", hash = "sha256:ca899ca043dcb1bafa3e262d73aa25c465bfb49e0bd9dd5d59f1d0acba2f8fac"},
-    {file = "urllib3-2.2.3.tar.gz", hash = "sha256:e7d814a81dad81e6caf2ec9fdedb284ecc9c73076b62654547cc64ccdcae26e9"},
+    {file = "urllib3-2.0.7-py3-none-any.whl", hash = "sha256:fdb6d215c776278489906c2f8916e6e7d4f5a9b602ccbcfdf7f016fc8da0596e"},
+    {file = "urllib3-2.0.7.tar.gz", hash = "sha256:c97dfde1f7bd43a71c8d2a58e369e9b2bf692d1334ea9f9cae55add7d0dd0f84"},
 ]
 
 [package.extras]
 brotli = ["brotli (>=1.0.9)", "brotlicffi (>=0.8.0)"]
-h2 = ["h2 (>=4,<5)"]
+secure = ["certifi", "cryptography (>=1.9)", "idna (>=2.0.0)", "pyopenssl (>=17.1.0)", "urllib3-secure-extra"]
 socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
@@ -5146,4 +5163,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "3f680efee812c839d2fdae61003e8c733e700578de3f2841d798e72590627af1"
+content-hash = "51caa4ffc2ca16e14c15ab64fc41d773320f81144ccfa3bfcc8cb737c1e18e80"

@@ -16,6 +16,8 @@ from typing import (
     get_origin,
 )
 
+import rich
+
 from agentia.agent import ToolCallEvent
 
 from .message import JSON, FunctionCall, Message, Role, ToolCall, ToolMessage
@@ -66,7 +68,13 @@ class ToolRegistry:
 
     async def init(self):
         for p in self.__plugins.values():
-            await p.init()
+            try:
+                await p.init()
+            except Exception as e:
+                rich.print(
+                    f"[red bold]Failed to initialize plugin {p.name}[/red bold][red]: {e}[/red]"
+                )
+                raise e
 
     def _add_dispatch_tool(self, f: Callable[..., Any]):
         return self.__add_function(f)
