@@ -22,7 +22,7 @@ print(response)
 
 ## Create an Agent from a Config File
 
-1. Create a config file at `./agents/alice.yml`
+1. Create a config file at `./alice.yml`
 
 ```yaml
 name: Alice
@@ -37,7 +37,7 @@ tools:
 2. In your python code:
 
 ```python
-agent = Agent.load_from_config("./agents/alice.yml")
+agent = Agent.load_from_config("./alice.yml")
 ```
 
 3. Alternatively, start a REPL:

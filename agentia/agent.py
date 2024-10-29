@@ -375,7 +375,7 @@ class Agent:
                     )
             return last_message
 
-        self.__backend.tools._add_dispatch_tool(communiate)
+        self.__tools._add_dispatch_tool(communiate)
 
     def __init_cooperation(self, colleagues: list["Agent"]):
         # Leader can dispatch jobs to colleagues
@@ -526,9 +526,7 @@ class Agent:
         return agents
 
     @staticmethod
-    def load_from_config(
-        config: str, resolver: Callable[[str], Path | None] | None = None
-    ):
+    def load_from_config(config: str | Path):
         from .utils.config import load_agent_from_config
 
-        return load_agent_from_config(config, resolver)
+        return load_agent_from_config(config)

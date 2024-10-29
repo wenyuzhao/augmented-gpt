@@ -1,9 +1,9 @@
-from typing import Any, Callable
+from typing import Any
 import yaml
 from pathlib import Path
 
 from agentia.agent import Agent
-from agentia.plugins import ALL_PLUGINS
+from agentia.plugins import ALL_PLUGINS, Plugin
 
 AGENTS_FOLDERS = [
     Path.cwd(),
@@ -13,43 +13,26 @@ AGENTS_FOLDERS = [
 ]
 
 
-def default_resolver(id: str) -> Path:
-    """Load a configuration file"""
+def __get_config_path(cwd: Path, id: str):
     id = id.strip()
-    has_ext = id.endswith(".yaml") or id.endswith(".yml")
-    for folder in AGENTS_FOLDERS:
-        if has_ext:
-            file = folder / id
-        else:
-            file = folder / f"{id}.yaml"
-            if not file.exists():
-                file = folder / f"{id}.yml"
-        if file.exists():
-            return file
+    possible_paths = []
+    if id.endswith(".yaml") or id.endswith(".yml"):
+        possible_paths.append(id)
+    else:
+        possible_paths.extend([f"{id}.yaml", f"{id}.yml"])
+    for s in possible_paths:
+        p = Path(s)
+        if not p.is_absolute():
+            p = cwd / p
+        if p.exists():
+            return p.resolve()
     raise FileNotFoundError(f"Agent not found: {id}")
 
 
-def __load_agent_from_config(
-    id: str,
-    pending: set[str],
-    agents: dict[str, Agent],
-    parent_tool_configs: dict[str, Any],
-    resolver: Callable[[str], Path | None],
-):
-    """Load a bot from a configuration file"""
-    file = resolver(id)
-    if file is None:
-        raise FileNotFoundError(f"Agent not found: {id}")
-    config = yaml.safe_load(file.read_text())
-    id = config.get("id", id)
-    if file.stem in pending:
-        raise ValueError(f"Circular dependency detected: {id}")
-    if file.stem in agents:
-        return agents[file.stem]
-    pending.add(file.stem)
-
-    # Create tools
-    tools = []
+def __create_tools(
+    config: dict[str, Any], parent_tool_configs: dict[str, Any]
+) -> tuple[list[Plugin], dict[str, Any]]:
+    tools: list[Plugin] = []
     tool_configs = {}
     if "tools" in config:
         if not isinstance(config["tools"], dict):
@@ -57,23 +40,44 @@ def __load_agent_from_config(
         for name, c in config["tools"].items():
             if name not in ALL_PLUGINS:
                 raise ValueError(f"Unknown tool: {name}")
-            Plugin = ALL_PLUGINS[name]
+            PluginCls = ALL_PLUGINS[name]
             if c is None and name in parent_tool_configs:
                 c = parent_tool_configs[name]
             tool_configs[name] = c
-            tools.append(Plugin(config=c or {}))
+            tools.append(PluginCls(config=c or {}))
+    return tools, tool_configs
 
+
+def __load_agent_from_config(
+    file: Path,
+    pending: set[Path],
+    agents: dict[Path, Agent],
+    parent_tool_configs: dict[str, Any],
+):
+    """Load a bot from a configuration file"""
+    # Load the configuration file
+    assert file.exists()
+    file = file.resolve()
+    config = yaml.safe_load(file.read_text())
+    # Already loaded?
+    if file in pending:
+        raise ValueError(f"Circular dependency detected: {file.stem}")
+    pending.add(file)
+    if file in agents:
+        return agents[file]
+    # Create tools
+    tools, tool_configs = __create_tools(config, parent_tool_configs)
     # Load colleagues
-    colleagues = []
+    colleagues: list[Agent] = []
     if "colleagues" in config:
-        for cid in config["colleagues"]:
+        for child_id in config["colleagues"]:
+            child_path = __get_config_path(file.parent, child_id)
             colleague = __load_agent_from_config(
-                cid, pending, agents, tool_configs, resolver
+                child_path, pending, agents, tool_configs
             )
             colleagues.append(colleague)
-
+    # Create agent
     knowledge_base: str | bool = config.get("knowledge_base", False)
-
     agent = Agent(
         name=config.get("name"),
         icon=config.get("icon"),
@@ -85,15 +89,37 @@ def __load_agent_from_config(
         knowledge_base=knowledge_base if isinstance(knowledge_base, str) else True,
     )
     agent.original_config = config
-    pending.remove(file.stem)
-    agents[file.stem] = agent
+    pending.remove(file)
+    agents[file] = agent
     return agent
 
 
-def load_agent_from_config(
-    id: str, resolver: Callable[[str], Path | None] | None = None
-):
+def load_agent_from_config(name: str | Path) -> Agent:
     """Load a bot from a configuration file"""
-    return __load_agent_from_config(
-        id, set(), dict(), parent_tool_configs={}, resolver=resolver or default_resolver
-    )
+    if isinstance(name, Path):
+        if not name.exists():
+            raise FileNotFoundError(f"Agent not found: {name}")
+        config_path = name.resolve()
+    elif name.endswith(".yaml") or name.endswith(".yml"):
+        # name is also a path
+        config_path = Path(name)
+        if not config_path.exists() or not config_path.is_file():
+            raise FileNotFoundError(f"Agent not found: {name}")
+        config_path = config_path.resolve()
+    elif (s := Path(name).suffix) and s not in [".yaml", ".yml"]:
+        raise ValueError(f"Invalid agent path: {name}")
+    else:
+        # If the name is a string, we need to find the configuration file from a list of search paths
+        config_path = None
+        for folder in AGENTS_FOLDERS:
+            file = folder / f"{name}.yaml"
+            if file.exists():
+                config_path = file
+                break
+            file = folder / f"{name}.yml"
+            if file.exists():
+                config_path = file
+                break
+        if config_path is None:
+            raise FileNotFoundError(f"Agent not found: {name}")
+    return __load_agent_from_config(config_path, set(), dict(), parent_tool_configs={})

@@ -1,7 +1,7 @@
 from ..decorators import tool
 from ..message import Message
 import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Type
 from agentia import tool
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ from .memory import *
 from .mstodo import *
 
 
-ALL_PLUGINS = {
+ALL_PLUGINS: dict[str, Type[Plugin]] = {
     "clock": ClockPlugin,
     "calc": CalculatorPlugin,
     "code": CodePlugin,
