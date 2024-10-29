@@ -72,6 +72,8 @@ def __load_agent_from_config(
             )
             colleagues.append(colleague)
 
+    knowledge_base: str | bool = config.get("knowledge_base", False)
+
     agent = Agent(
         name=config.get("name"),
         icon=config.get("icon"),
@@ -80,6 +82,7 @@ def __load_agent_from_config(
         tools=tools,
         instructions=config.get("instructions"),
         colleagues=colleagues,
+        knowledge_base=knowledge_base if isinstance(knowledge_base, str) else None,
     )
     agent.original_config = config
     pending.remove(file.stem)

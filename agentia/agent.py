@@ -22,7 +22,7 @@ import weakref
 import uuid
 
 from agentia import MSG_LOGGER
-from agentia.retrieval import KnowledgeBase
+from agentia.retrieval import KnowledgeBase, VectorStore
 
 from .message import *
 from .history import History
@@ -139,7 +139,7 @@ class Agent:
         instructions: str | None = None,
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
-        knowledge_base: KnowledgeBase | bool | None = None,
+        knowledge_base: KnowledgeBase | bool | str | None = None,
         persist_session: bool = False,
     ):
         from .llm import LLMBackend, ModelOptions
@@ -208,6 +208,8 @@ class Agent:
             )
         elif isinstance(knowledge_base, KnowledgeBase):
             self.__knowledge_base = knowledge_base
+        elif isinstance(knowledge_base, str):
+            self.__knowledge_base = KnowledgeBase(knowledge_base)
         else:
             self.__knowledge_base = None
 
@@ -371,12 +373,12 @@ class Agent:
         if self.__knowledge_base is None:
             return
         # Load global documents
-        docs = self.agent_data_folder / "docs"
+        docs = self.agent_data_folder / "knowledge-base" / "docs"
         docs.mkdir(parents=True, exist_ok=True)
-        files = self.__knowledge_base.load_global_docs_and_persist(
-            docs, self.agent_data_folder / "docs.index"
-        )
-        if len(files) > 0:
+        global_vector_store = VectorStore(self.agent_data_folder / "knowledge-base")
+        if len(global_vector_store.initial_files or []) > 0:
+            self.__knowledge_base.add_vector_store("global", global_vector_store)
+            files = global_vector_store.initial_files or []
             self.history.add(SystemMessage(f"FILES: {', '.join(files)}"))
 
         agent = self
