@@ -145,14 +145,14 @@ class Agent:
         from .llm import LLMBackend, ModelOptions
         from .tools import ToolRegistry
 
+        # Init simple fields
+        self.__is_initialized = False
         name = name.strip()
         if name == "":
             raise ValueError("Agent name cannot be empty.")
         self.name = name
-
         self.id = slugify(name.lower())
         self.session_id = self.id + "-" + str(uuid.uuid4())
-
         self.icon = icon
         self.log = MSG_LOGGER.getChild(self.id)
         if debug:
@@ -163,29 +163,8 @@ class Agent:
             model = model.split(":")[1]
         else:
             provider = "openrouter"
-        if provider == "openai":
-            from .llm.openai import OpenAIBackend
-
-            self.__backend: LLMBackend = OpenAIBackend(
-                model=model,
-                tools=ToolRegistry(self, tools),
-                options=options or ModelOptions(),
-                instructions=instructions,
-                api_key=api_key,
-            )
-        else:
-            from .llm.openrouter import OpenRouterBackend
-
-            self.__backend: LLMBackend = OpenRouterBackend(
-                model=model,
-                tools=ToolRegistry(self, tools),
-                options=options or ModelOptions(),
-                instructions=instructions,
-                api_key=api_key,
-            )
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
-        # Event listeners
         self.__user_consent_handler: UserConsentHandler | None = None
         self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
@@ -197,11 +176,15 @@ class Agent:
         self.session_data_folder = (
             Path.cwd() / ".cache" / "sessions" / f"{self.session_id}"
         )
+        self.agent_data_folder.mkdir(parents=True, exist_ok=True)
+        self.session_data_folder.mkdir(parents=True, exist_ok=True)
         self.persist_session = persist_session
-
+        self.__tools = ToolRegistry(self, tools)
+        self.__instructions = instructions
+        # Init colleagues
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
-
+        # Init knowledge base (Step 1)
         if knowledge_base is True:
             self.__knowledge_base = KnowledgeBase(
                 self.session_data_folder / "knowledge-base"
@@ -212,15 +195,31 @@ class Agent:
             self.__knowledge_base = KnowledgeBase(knowledge_base)
         else:
             self.__knowledge_base = None
-
         if self.__knowledge_base is not None:
             self.__init_knowledge_base()
+        # Init memory
+        self.__init_memory()
+        # Init backend
+        if provider == "openai":
+            from .llm.openai import OpenAIBackend
 
-        self.__is_initialized = False
-        if not self.agent_data_folder.exists():
-            self.agent_data_folder.mkdir(parents=True)
-        if not self.session_data_folder.exists():
-            self.session_data_folder.mkdir(parents=True)
+            self.__backend: LLMBackend = OpenAIBackend(
+                model=model,
+                tools=self.__tools,
+                options=options or ModelOptions(),
+                instructions=self.__instructions,
+                api_key=api_key,
+            )
+        else:
+            from .llm.openrouter import OpenRouterBackend
+
+            self.__backend: LLMBackend = OpenRouterBackend(
+                model=model,
+                tools=self.__tools,
+                options=options or ModelOptions(),
+                instructions=self.__instructions,
+                api_key=api_key,
+            )
 
         if not persist_session:
             weakref.finalize(self, Agent.__sweeper, self.session_id)
@@ -379,7 +378,10 @@ class Agent:
         if len(global_vector_store.initial_files or []) > 0:
             self.__knowledge_base.add_vector_store("global", global_vector_store)
             files = global_vector_store.initial_files or []
-            self.history.add(SystemMessage(f"FILES: {', '.join(files)}"))
+            if self.__instructions is not None:
+                self.__instructions += f"\n\nFILES: {', '.join(files)}"
+            else:
+                self.__instructions = f"FILES: {', '.join(files)}"
 
         agent = self
 
@@ -402,13 +404,30 @@ class Agent:
             response = await agent.__knowledge_base.query(query, filename)
             return response
 
-        self.__backend.tools._add_file_search_tool(file_search)
+        self.__tools._add_file_search_tool(file_search)
+
+    def __init_memory(self):
+        from .plugins import MemoryPlugin
+
+        mem_plugin = self.get_plugin("Memory")
+        if mem_plugin is None or not isinstance(mem_plugin, MemoryPlugin):
+            return
+
+        content = (self.agent_data_folder / "memory").read_text().strip()
+
+        if len(content) == 0:
+            return
+
+        if self.__instructions is None:
+            self.__instructions = f"YOUR PREVIOUS MEMORY: \n{content}"
+        else:
+            self.__instructions += f"\n\nYOUR PREVIOUS MEMORY: \n{content}"
 
     def reset(self):
         self.__backend.reset()
 
-    def get_plugin(self, name: str) -> "Plugin":
-        return self.__backend.tools.get_plugin(name)
+    def get_plugin(self, name: str) -> Optional["Plugin"]:
+        return self.__tools.get_plugin(name)
 
     @overload
     def chat_completion(

@@ -35,6 +35,7 @@ class Plugin:
 from .calc import *
 from .clock import *
 from .code import *
+from .memory import *
 from .mstodo import *
 
 
@@ -43,4 +44,5 @@ ALL_PLUGINS = {
     "calc": CalculatorPlugin,
     "code": CodePlugin,
     "mstodo": MSToDoPlugin,
+    "memory": MemoryPlugin,
 }

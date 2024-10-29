@@ -187,8 +187,8 @@ class ToolRegistry:
         # Call the plugin's register method
         p._register(self._agent)
 
-    def get_plugin(self, name: str) -> Plugin:
-        return self.__plugins[name]
+    def get_plugin(self, name: str) -> Plugin | None:
+        return self.__plugins.get(name)
 
     def is_empty(self) -> bool:
         return len(self.__functions) == 0
