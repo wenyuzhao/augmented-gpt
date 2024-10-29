@@ -5,7 +5,7 @@ from pathlib import Path
 from agentia.agent import Agent
 from agentia.plugins import ALL_PLUGINS, Plugin
 
-AGENTS_FOLDERS = [
+AGENTS_SEARCH_PATHS = [
     Path.cwd(),
     Path.cwd() / "agents",
     Path.cwd() / ".agents",
@@ -111,15 +111,13 @@ def load_agent_from_config(name: str | Path) -> Agent:
     else:
         # If the name is a string, we need to find the configuration file from a list of search paths
         config_path = None
-        for folder in AGENTS_FOLDERS:
-            file = folder / f"{name}.yaml"
-            if file.exists():
+        for dir in AGENTS_SEARCH_PATHS:
+            if (file := dir / f"{name}.yaml").exists():
                 config_path = file
                 break
-            file = folder / f"{name}.yml"
-            if file.exists():
+            if (file := dir / f"{name}.yml").exists():
                 config_path = file
                 break
         if config_path is None:
             raise FileNotFoundError(f"Agent config not found: {name}")
-    return __load_agent_from_config(config_path, set(), dict(), parent_tool_configs={})
+    return __load_agent_from_config(config_path, set(), {}, {})
