@@ -177,6 +177,7 @@ class Agent:
         self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
         self.__on_communication_start: Callable[[CommunicationEvent], Any] | None = None
         self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
+        self.__on_client_tool_call: Callable[[str, Any], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
         self.agent_data_folder = _get_global_cache_dir() / "agents" / f"{self.id}"
@@ -301,6 +302,18 @@ class Agent:
     def on_commuication_end(self, listener: Callable[[CommunicationEvent], Any]):
         self.__on_communication_end = listener
         return listener
+
+    def on_client_tool_call(self, listener: Callable[[str, Any], Any]):
+        self.__on_client_tool_call = listener
+        return listener
+
+    async def _client_tool_call(self, name: str, args: Any):
+        if self.__on_client_tool_call is None:
+            raise ValueError("Client tool call is not enabled.")
+        result = self.__on_client_tool_call(name, args)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
 
     async def _emit_tool_call_event(self, event: ToolCallEvent):
         async def call_listener(listener: ToolCallEventListener):

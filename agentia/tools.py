@@ -23,6 +23,8 @@ from agentia.agent import ToolCallEvent
 from .message import JSON, FunctionCall, Message, Role, ToolCall, ToolMessage
 
 from .plugins import Plugin
+from pydantic import BaseModel
+
 
 Tool = Plugin | Callable[..., Any]
 
@@ -53,6 +55,12 @@ class ToolInfo:
         }
 
 
+class ClientTool(BaseModel):
+    name: str
+    description: str
+    properties: dict[str, object]
+
+
 class ToolRegistry:
     def __init__(self, agent: "Agent", tools: Tools | None = None) -> None:
         self.__functions: dict[str, ToolInfo] = {}
@@ -81,6 +89,22 @@ class ToolRegistry:
 
     def _add_file_search_tool(self, f: Callable[..., Any]):
         return self.__add_function(f)
+
+    def add_client_tools(self, tools: list[ClientTool]):
+        async def call_client_tool(tool_name: str, **kwargs):
+            tool = next(t for t in tools if t.name == tool_name)
+            return await self._agent._client_tool_call(tool_name, kwargs)
+
+        for t in tools:
+            if t.name in self.__functions:
+                raise ValueError(f"Tool `{t.name}` already exists")
+            self.__functions[t.name] = ToolInfo(
+                name=t.name,
+                display_name=t.name,
+                description=t.description,
+                parameters=t.properties,
+                callable=call_client_tool,
+            )
 
     def __add_function(self, f: Callable[..., Any]):
         fname = getattr(f, NAME_TAG, f.__name__)

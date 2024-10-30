@@ -15,6 +15,8 @@ from agentia.message import UserMessage
 
 from dataclasses import dataclass, asdict, field
 
+from agentia.tools import ClientTool
+
 
 @dataclass
 class BaseMessage:
@@ -107,6 +109,26 @@ class Error(BaseMessage):
     type: str = "error"
 
 
+@dataclass
+class SetupClientTools(BaseMessage):
+    tools: list[Any]
+    type: str = "setup.client.tools"
+
+
+@dataclass
+class ClientToolCall(BaseMessage):
+    name: str
+    args: Any
+    type: str = "client.tool.call"
+
+
+@dataclass
+class ClientToolCallResult(BaseMessage):
+    name: str
+    result: Any
+    type: str = "client.tool.result"
+
+
 async def __chat_server(agent_name: str, websocket: WebSocket):
     await websocket.accept()
     agent = Agent.load_from_config(agent_name)
@@ -152,10 +174,22 @@ async def __chat_server(agent_name: str, websocket: WebSocket):
             )
         )
 
+    async def execute_client_tool_call(tool: str, args: Any):
+        await send(ClientToolCall(name=tool, args=args))
+        res = await websocket.receive_json()
+        while True:
+            if res["type"] == "client.tool.result":
+                return res["result"]
+            else:
+                await send(Error(message="Invalid message"))
+
     async def receive_request() -> Prompt | None:
         while True:
             data = await websocket.receive_json()
-            if data["type"] == "prompt":
+            if data["type"] == "setup.client.tools":
+                agent.tools.add_client_tools([ClientTool(**t) for t in data["tools"]])
+                agent.on_client_tool_call(execute_client_tool_call)
+            elif data["type"] == "prompt":
                 return Prompt(content=data["content"], files=data.get("files", []))
             else:
                 await send(Error(message="Invalid message"))
