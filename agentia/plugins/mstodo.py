@@ -4,6 +4,7 @@ from . import Plugin
 from typing import Annotated, Literal, override
 import pymstodo
 from pymstodo import TaskList, Task
+from dataclasses import asdict
 
 
 class MSToDoPlugin(Plugin):
@@ -48,22 +49,7 @@ class MSToDoPlugin(Plugin):
         return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
     def __fmt_task(self, task: Task) -> Any:
-        return {
-            "task_id": task.task_id,
-            "body": task.body,
-            "categories": task.categories,
-            "completedDateTime": task.completedDateTime,
-            "createdDateTime": task.createdDateTime,
-            "dueDateTime": task.dueDateTime,
-            "hasAttachments": task.hasAttachments,
-            "title": task.title,
-            "importance": task.importance,
-            "isReminderOn": task.isReminderOn,
-            "lastModifiedDateTime": task.lastModifiedDateTime,
-            "reminderDateTime": task.reminderDateTime,
-            "startDateTime": task.startDateTime,
-            "status": task.status,
-        }
+        return asdict(task)
 
     @tool
     def get_all_task_lists(self):
