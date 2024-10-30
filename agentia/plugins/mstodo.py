@@ -1,7 +1,9 @@
+from datetime import datetime
 from ..decorators import *
 from . import Plugin
-from typing import Annotated, override
+from typing import Annotated, Literal, override
 import pymstodo
+from pymstodo import TaskList, Task
 
 
 class MSToDoPlugin(Plugin):
@@ -39,11 +41,170 @@ class MSToDoPlugin(Plugin):
         self.client = pymstodo.ToDoConnection(
             client_id=client_id, client_secret=client_secret, token=token
         )
+        self.default_list_id = self.client.get_lists()[0].list_id
+
+    def __process_time(self, time: str) -> datetime:
+        # time is in the format of YYYY-MM-DD HH:MM:SS
+        return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
+
+    def __fmt_task(self, task: Task) -> Any:
+        return {
+            "task_id": task.task_id,
+            "body": task.body,
+            "categories": task.categories,
+            "completedDateTime": task.completedDateTime,
+            "createdDateTime": task.createdDateTime,
+            "dueDateTime": task.dueDateTime,
+            "hasAttachments": task.hasAttachments,
+            "title": task.title,
+            "importance": task.importance,
+            "isReminderOn": task.isReminderOn,
+            "lastModifiedDateTime": task.lastModifiedDateTime,
+            "reminderDateTime": task.reminderDateTime,
+            "startDateTime": task.startDateTime,
+            "status": task.status,
+        }
 
     @tool
-    def list_tasks(self):
-        """List all the to-do tasks"""
+    def get_all_task_lists(self):
+        """Get the name and list_id of all the task lists. NOTE: This tool does not give you the tasks details in eahc list. Only the list name and id."""
         lists = self.client.get_lists()
-        task_list = lists[0]
-        tasks = self.client.get_tasks(task_list.list_id)
-        return [str(x) for x in tasks]
+
+        def list_to_json(tl: TaskList):
+            return {
+                "list_id": tl.list_id,
+                "name": tl.displayName,
+            }
+
+        return [list_to_json(x) for x in lists]
+
+    @tool
+    def get_tasks_in_list(
+        self,
+        list_id: Annotated[
+            str | None,
+            "The id of the list to get tasks from. By default the default main task list will be used. NOTE: You can use get_all_task_lists to get the list_id of all the task lists.",
+        ],
+    ):
+        """Get all the tasks in a specific list in Microsoft To Do."""
+        if list_id is None:
+            list_id = self.default_list_id
+        tasks = self.client.get_tasks(list_id)
+        return [self.__fmt_task(x) for x in tasks]
+
+    @tool
+    def create_task(
+        self,
+        list_id: Annotated[
+            str | None,
+            "The id of the list to add the task to. By default the default main task list will be used. NOTE: You can use get_all_task_lists to get the list_id of all the task lists.",
+        ],
+        title: Annotated[str, "The title of the task to create."],
+        importance: Annotated[
+            Literal["low", "normal", "high"] | None,
+            "The importance of the task. normal by default",
+        ],
+        due_datetime: Annotated[
+            str | None,
+            "The date that the task is to be finished. In the format of `YYYY-MM-DD HH:MM:SS`. If you are unsure about the due time, set it to 23:59:59. Leave it empty if you don't want to set a due date.",
+        ],
+        reminder_datetime: Annotated[
+            str | None,
+            "The date that the reminder is to be sent to the user. In the format of `YYYY-MM-DD HH:MM:SS`. If you are unsure about the reminder time, set it to 23:59:59. Leave it empty if you don't want to set a reminder.",
+        ],
+    ):
+        """Add a task to a specific list in Microsoft To Do."""
+        list_id = list_id or self.default_list_id
+        task = self.client.create_task(
+            list_id=list_id,
+            title=title,
+            due_date=self.__process_time(due_datetime) if due_datetime else None,
+        )
+        task_data: Any = {"importance": importance or "normal"}
+        if reminder_datetime is not None:
+            d = self.__process_time(reminder_datetime)
+            task_data["reminderDateTime"] = {
+                "dateTime": d.strftime("%Y-%m-%dT%H:%M:%S.0000000"),
+                "timeZone": "UTC",
+            }
+        self.client.update_task(task.task_id, list_id, **task_data)
+        return {
+            "task_id": task.task_id,
+            "list_id": list_id,
+        }
+
+    @tool
+    def update_task(
+        self,
+        task_id: Annotated[str, "The id of the task to update."],
+        list_id: Annotated[str, "The id of the list that the task is in."],
+        title: Annotated[str, "The title of the task to create."],
+        importance: Annotated[
+            Literal["low", "normal", "high"] | None,
+            "The importance of the task. normal by default",
+        ],
+        due_datetime: Annotated[
+            str | None,
+            "The date that the task is to be finished. In the format of `YYYY-MM-DD HH:MM:SS`. If you are unsure about the due time, set it to 23:59:59. Leave it empty if you don't want to set a due date.",
+        ],
+        reminder_datetime: Annotated[
+            str | None,
+            "The date that the reminder is to be sent to the user. In the format of `YYYY-MM-DD HH:MM:SS`. If you are unsure about the reminder time, set it to 23:59:59. Leave it empty if you don't want to set a reminder.",
+        ],
+        status: Annotated[
+            Literal[
+                "notStarted", "inProgress", "completed", "waitingOnOthers", "deferred"
+            ]
+            | None,
+            "The status of the task.",
+        ],
+    ):
+        """Update the information a TODO task in Microsoft To Do. NOTE: You can use get_all_task_lists to get the list_id of all the task lists."""
+        task_data: Any = {}
+        if title:
+            task_data["title"] = title
+        if importance:
+            task_data["importance"] = importance
+        if due_datetime:
+            d = self.__process_time(due_datetime)
+            task_data["dueDateTime"] = {
+                "dateTime": d.strftime("%Y-%m-%dT%H:%M:%S.0000000"),
+                "timeZone": "UTC",
+            }
+        if reminder_datetime:
+            d = self.__process_time(reminder_datetime)
+            task_data["reminderDateTime"] = {
+                "dateTime": d.strftime("%Y-%m-%dT%H:%M:%S.0000000"),
+                "timeZone": "UTC",
+            }
+        if status:
+            task_data["status"] = status
+
+        self.client.update_task(task_id, list_id, **task_data)
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "list_id": list_id,
+        }
+
+    @tool
+    def add_task_comment(
+        self,
+        task_id: Annotated[str, "The id of the task to add the comment to."],
+        list_id: Annotated[str, "The id of the list that the task is in."],
+        comment: Annotated[str, "The comment to add to the task."],
+    ):
+        """Append a comment to a task in Microsoft To Do."""
+        time = datetime.now()
+        time_str = time.strftime("%Y-%m-%d %H:%M:%S")
+        comment = f"[{time_str}] @{self.agent.id}: {comment}"
+        task_data: Any = {
+            "body": {"content": comment, "contentType": "text"},
+        }
+        self.client.update_task(task_id, list_id, **task_data)
+        return {
+            "success": True,
+            "task_id": task_id,
+            "list_id": list_id,
+        }
