@@ -34,7 +34,7 @@ python-slugify = "^8.0.4"
 tiktoken = "^0.8.0"
 dataforseo-client = "^1.0.34"
 markdownify = "^0.13.1"
-
+nltk = "^3.9.1"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.23.2"

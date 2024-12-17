@@ -137,6 +137,7 @@ class Agent:
     def __init__(
         self,
         name: str = "default",
+        id: str | None = None,
         icon: str | None = None,
         description: str | None = None,
         model: Annotated[str | None, f"Default to {DEFAULT_MODEL}"] = None,
@@ -158,7 +159,7 @@ class Agent:
         if name == "":
             raise ValueError("Agent name cannot be empty.")
         self.name = name
-        self.id = slugify(name.lower())
+        self.id = slugify((id or name.lower()).strip())
         self.session_id = self.id + "-" + str(uuid.uuid4())
         self.icon = icon
         self.log = MSG_LOGGER.getChild(self.id)
@@ -446,6 +447,8 @@ class Agent:
         if mem_plugin is None or not isinstance(mem_plugin, MemoryPlugin):
             return
 
+        if not (self.agent_data_folder / "memory").exists():
+            return
         content = (self.agent_data_folder / "memory").read_text().strip()
 
         if len(content) == 0:

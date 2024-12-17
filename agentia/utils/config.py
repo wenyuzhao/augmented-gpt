@@ -83,8 +83,10 @@ def __load_agent_from_config(
             colleagues.append(colleague)
     # Create agent
     knowledge_base: str | bool = config.get("knowledge_base", False)
+    agent_id = config.get("id", file.stem)
     agent = Agent(
         name=config.get("name"),
+        id=agent_id,
         icon=config.get("icon"),
         description=config.get("description"),
         model=config.get("model"),
