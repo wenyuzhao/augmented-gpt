@@ -56,7 +56,10 @@ class OpenAIBackend(LLMBackend):
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        self.client = openai.AsyncOpenAI(api_key=api_key)
+        base_url: str | None = None
+        if "OPENAI_BASE_URL" in os.environ:
+            base_url = os.environ["OPENAI_BASE_URL"]
+        self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     @overload
     @override
