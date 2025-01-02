@@ -20,6 +20,7 @@ import rich
 from slugify import slugify
 import weakref
 import uuid
+import os
 
 from agentia import MSG_LOGGER
 from agentia.retrieval import KnowledgeBase, VectorStore
@@ -65,7 +66,12 @@ class CommunicationEvent:
 ToolCallEventListener = Callable[[ToolCallEvent], Any]
 CommunicationEventListener = Callable[[CommunicationEvent], Any]
 
-DEFAULT_MODEL = "openai/gpt-4o-mini"
+DEFAULT_MODEL_OPENROUTER = "openai/gpt-4o-mini"
+DEFAULT_MODEL_OPENAI = "gpt-4o-mini"
+if "OPENAI_BASE_URL" in os.environ:
+    DEFAULT_MODEL = DEFAULT_MODEL_OPENAI
+else:
+    DEFAULT_MODEL = DEFAULT_MODEL_OPENROUTER
 
 
 @dataclass
@@ -169,6 +175,8 @@ class Agent:
         if ":" in model:
             provider = model.split(":")[0]
             model = model.split(":")[1]
+        elif "OPENAI_BASE_URL" in os.environ:
+            provider = "openai"
         else:
             provider = "openrouter"
         self.description = description
