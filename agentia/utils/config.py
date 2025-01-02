@@ -93,7 +93,9 @@ def __load_agent_from_config(
         tools=tools,
         instructions=config.get("instructions"),
         colleagues=colleagues,
-        knowledge_base=knowledge_base if isinstance(knowledge_base, str) else True,
+        knowledge_base=(
+            knowledge_base if isinstance(knowledge_base, str) else knowledge_base
+        ),
     )
     agent.original_config = config
     pending.remove(file)
