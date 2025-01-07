@@ -12,8 +12,12 @@ class History:
         self.__messages: list[Message] = []
         self.reset()
 
-    def get_trimmed(self, keep_last=0) -> list[Message]:
-        return History.__trim(self.__messages, keep_last=keep_last)
+    def get_for_inference(self, keep_last=0) -> list[Message]:
+        """
+        Get the recent messages for inference
+        """
+        messages = History.__trim(self.__messages, keep_last=keep_last)
+        return messages
 
     def reset(self):
         self.__messages = []

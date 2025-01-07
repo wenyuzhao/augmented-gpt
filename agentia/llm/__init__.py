@@ -116,7 +116,7 @@ class LLMBackend:
             await self._on_new_chat_message(m)
         # First completion request
         message: AssistantMessage
-        trimmed_history = self.history.get_trimmed(keep_last=len(messages))
+        trimmed_history = self.history.get_for_inference(keep_last=len(messages))
         if stream:
             s = await self._chat_completion_request(trimmed_history, stream=True)
             yield s
@@ -138,7 +138,7 @@ class LLMBackend:
                     count += 1
                 else:
                     yield event
-            trimmed_history = self.history.get_trimmed(keep_last=count + 1)
+            trimmed_history = self.history.get_for_inference(keep_last=count + 1)
             # Submit results
             message: AssistantMessage
             if stream:
