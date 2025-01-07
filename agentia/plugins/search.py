@@ -1,26 +1,27 @@
 from ..decorators import *
 from . import Plugin
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Union
 from dataforseo_client import (
     configuration as dfs_config,
     api_client as dfs_api_provider,
 )
-from dataforseo_client.api.serp_api import SerpApi
 from dataforseo_client.models.serp_google_organic_live_regular_request_info import (
     SerpGoogleOrganicLiveRegularRequestInfo,
-)
-from dataforseo_client.models.serp_google_organic_live_regular_response_info import (
-    SerpGoogleOrganicLiveRegularResponseInfo,
-)
-from dataforseo_client.models.serp_google_news_live_advanced_response_info import (
-    SerpGoogleNewsLiveAdvancedResponseInfo,
 )
 from dataforseo_client.models.serp_google_maps_live_advanced_request_info import (
     SerpGoogleMapsLiveAdvancedRequestInfo,
 )
-from dataforseo_client.models.serp_google_maps_live_advanced_response_info import (
-    SerpGoogleMapsLiveAdvancedResponseInfo,
-)
+
+if TYPE_CHECKING:
+    from dataforseo_client.models.serp_google_organic_live_regular_response_info import (
+        SerpGoogleOrganicLiveRegularResponseInfo,
+    )
+    from dataforseo_client.models.serp_google_news_live_advanced_response_info import (
+        SerpGoogleNewsLiveAdvancedResponseInfo,
+    )
+    from dataforseo_client.models.serp_google_maps_live_advanced_response_info import (
+        SerpGoogleMapsLiveAdvancedResponseInfo,
+    )
 from dataforseo_client.models.serp_task_request_info import SerpTaskRequestInfo
 from dataforseo_client.models.work_hours import WorkHours
 from dataforseo_client.models.work_day_info import WorkDayInfo
@@ -41,15 +42,17 @@ class SearchPlugin(Plugin):
         self.__client = dfs_api_provider.ApiClient(
             dfs_config.Configuration(username=username, password=password)
         )
+        from dataforseo_client.api.serp_api import SerpApi
+
         self.__api = SerpApi(self.__client)
 
     def __process_result(
         self,
-        res: (
-            SerpGoogleOrganicLiveRegularResponseInfo
-            | SerpGoogleNewsLiveAdvancedResponseInfo
-            | SerpGoogleMapsLiveAdvancedResponseInfo
-        ),
+        res: Union[
+            "SerpGoogleOrganicLiveRegularResponseInfo",
+            "SerpGoogleNewsLiveAdvancedResponseInfo",
+            "SerpGoogleMapsLiveAdvancedResponseInfo",
+        ],
     ):
         if (
             not res.tasks

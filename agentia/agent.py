@@ -23,7 +23,9 @@ import uuid
 import os
 
 from agentia import MSG_LOGGER
-from agentia.retrieval import KnowledgeBase, VectorStore
+
+if TYPE_CHECKING:
+    from agentia.retrieval import KnowledgeBase
 
 from .message import *
 from .history import History
@@ -153,7 +155,7 @@ class Agent:
         instructions: str | None = None,
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
-        knowledge_base: KnowledgeBase | bool | str | None = None,
+        knowledge_base: Union["KnowledgeBase", bool, str, None] = None,
         persist_session: bool = False,
     ):
         from .llm import LLMBackend, ModelOptions
@@ -202,16 +204,21 @@ class Agent:
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
         # Init knowledge base (Step 1)
+        self.knowledge_base: Optional["KnowledgeBase"] = None
         if knowledge_base is True:
+            from agentia.retrieval import KnowledgeBase
+
             self.knowledge_base = KnowledgeBase(
                 self.session_data_folder / "knowledge-base"
             )
-        elif isinstance(knowledge_base, KnowledgeBase):
-            self.knowledge_base = knowledge_base
         elif isinstance(knowledge_base, str):
+            from agentia.retrieval import KnowledgeBase
+
             self.knowledge_base = KnowledgeBase(knowledge_base)
-        else:
+        elif knowledge_base is None or knowledge_base is False:
             self.knowledge_base = None
+        else:
+            self.knowledge_base = knowledge_base
         if self.knowledge_base is not None:
             self.__init_knowledge_base()
         # Init memory
@@ -416,6 +423,8 @@ class Agent:
         # Load global documents
         docs = self.agent_data_folder / "knowledge-base" / "docs"
         docs.mkdir(parents=True, exist_ok=True)
+        from agentia.retrieval import VectorStore
+
         global_vector_store = VectorStore(self.agent_data_folder / "knowledge-base")
         if len(global_vector_store.initial_files or []) > 0:
             self.knowledge_base.add_vector_store("global", global_vector_store)

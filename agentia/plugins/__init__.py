@@ -1,8 +1,6 @@
 from ..decorators import tool
 from ..message import Message
-import datetime
-from typing import TYPE_CHECKING, Any, Type
-from agentia import tool
+from typing import TYPE_CHECKING, Any, Callable, Type
 
 if TYPE_CHECKING:
     from ..agent import Agent

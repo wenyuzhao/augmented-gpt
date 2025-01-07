@@ -1,14 +1,17 @@
 from datetime import datetime
 from ..decorators import *
 from . import Plugin
-from typing import Annotated, Literal, override
-import pymstodo
-from pymstodo import TaskList, Task
+from typing import Annotated, Literal, override, TYPE_CHECKING
 from dataclasses import asdict
+
+if TYPE_CHECKING:
+    from pymstodo import TaskList, Task
 
 
 class MSToDoPlugin(Plugin):
     def __test_token(self, client_id: str, client_secret: str, token: Any):
+        import pymstodo
+
         try:
             client = pymstodo.ToDoConnection(
                 client_id=client_id, client_secret=client_secret, token=token
@@ -20,6 +23,8 @@ class MSToDoPlugin(Plugin):
 
     @override
     async def init(self):
+        import pymstodo
+
         self.agent.log.info("MSToDoPlugin initialized")
         client_id = self.config.get("client_id")
         client_secret = self.config.get("client_secret")
@@ -48,7 +53,7 @@ class MSToDoPlugin(Plugin):
         # time is in the format of YYYY-MM-DD HH:MM:SS
         return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
-    def __fmt_task(self, task: Task) -> Any:
+    def __fmt_task(self, task: "Task") -> Any:
         return asdict(task)
 
     @tool
@@ -56,7 +61,7 @@ class MSToDoPlugin(Plugin):
         """Get the name and list_id of all the task lists. NOTE: This tool does not give you the tasks details in eahc list. Only the list name and id."""
         lists = self.client.get_lists()
 
-        def list_to_json(tl: TaskList):
+        def list_to_json(tl: "TaskList"):
             return {
                 "list_id": tl.list_id,
                 "name": tl.displayName,
