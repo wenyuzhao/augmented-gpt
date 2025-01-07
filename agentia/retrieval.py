@@ -56,6 +56,8 @@ class KnowledgeBase:
         """Query the knowledge base"""
         self.__retriever.file = file
         response = await self.__query_engine.aquery(query)
+        if len(response.source_nodes) == 0:
+            return "ERROR: No results found because the knowledge base is empty."
         formatted_response = response.response + "\n\n\nSOURCES:\n\n"
         for i, node in enumerate(response.source_nodes):
             assert isinstance(node, NodeWithScore)

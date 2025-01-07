@@ -157,7 +157,6 @@ class Agent:
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
         knowledge_base: Union["KnowledgeBase", bool, Path, None] = None,
-        persist_session: bool = False,
     ):
         from .llm import LLMBackend, ModelOptions
         from .tools import ToolRegistry
@@ -200,7 +199,6 @@ class Agent:
         )
         self.agent_data_folder.mkdir(parents=True, exist_ok=True)
         self.session_data_folder.mkdir(parents=True, exist_ok=True)
-        self.persist_session = persist_session
         self.__tools = ToolRegistry(self, tools)
         self.__instructions = instructions
         # Init colleagues
@@ -237,8 +235,7 @@ class Agent:
                 api_key=api_key,
             )
 
-        if not persist_session:
-            weakref.finalize(self, Agent.__sweeper, self.session_id)
+        weakref.finalize(self, Agent.__sweeper, self.session_id)
 
     @staticmethod
     def __sweeper(session_id: str):
