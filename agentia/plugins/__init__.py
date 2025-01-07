@@ -54,3 +54,11 @@ ALL_PLUGINS: dict[str, Type[Plugin]] = {
     "vision": VisionPlugin,
     "web": WebPlugin,
 }
+
+
+def register_plugin(name: str) -> Callable[[Type[Plugin]], Type[Plugin]]:
+    def wrapper(cls: Type[Plugin]):
+        ALL_PLUGINS[name] = cls
+        return cls
+
+    return wrapper
