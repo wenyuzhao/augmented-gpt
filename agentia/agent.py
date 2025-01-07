@@ -26,7 +26,7 @@ import os
 from agentia import MSG_LOGGER
 
 if TYPE_CHECKING:
-    from agentia.retrieval import KnowledgeBase
+    from agentia.knowledge_base import KnowledgeBase
 
 from .message import *
 from .history import History
@@ -408,7 +408,7 @@ class Agent:
     def __init_knowledge_base(
         self, source: Union["KnowledgeBase", Path, None]
     ) -> "KnowledgeBase":
-        from agentia.retrieval import KnowledgeBase
+        from agentia.knowledge_base import KnowledgeBase
 
         # Get session store persist path
         session_store = self.session_data_folder / "knowledge-base"
