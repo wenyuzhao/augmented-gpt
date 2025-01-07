@@ -94,7 +94,7 @@ def __load_agent_from_config(
         instructions=config.get("instructions"),
         colleagues=colleagues,
         knowledge_base=(
-            knowledge_base if isinstance(knowledge_base, str) else knowledge_base
+            Path(knowledge_base) if isinstance(knowledge_base, str) else knowledge_base
         ),
     )
     agent.original_config = config

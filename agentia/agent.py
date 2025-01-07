@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import logging
 import shutil
 from typing import (
@@ -155,7 +156,7 @@ class Agent:
         instructions: str | None = None,
         debug: bool = False,
         colleagues: list["Agent"] | None = None,
-        knowledge_base: Union["KnowledgeBase", bool, str, None] = None,
+        knowledge_base: Union["KnowledgeBase", bool, Path, None] = None,
         persist_session: bool = False,
     ):
         from .llm import LLMBackend, ModelOptions
@@ -168,7 +169,9 @@ class Agent:
             raise ValueError("Agent name cannot be empty.")
         self.name = name
         self.id = slugify((id or name.lower()).strip())
-        self.session_id = self.id + "-" + str(uuid.uuid4())
+
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+        self.session_id = self.id + "-" + timestamp + "-" + str(uuid.uuid4())
         self.icon = icon
         self.log = MSG_LOGGER.getChild(self.id)
         if debug:
@@ -205,22 +208,10 @@ class Agent:
             self.__init_cooperation(colleagues)
         # Init knowledge base (Step 1)
         self.knowledge_base: Optional["KnowledgeBase"] = None
-        if knowledge_base is True:
-            from agentia.retrieval import KnowledgeBase
-
-            self.knowledge_base = KnowledgeBase(
-                self.session_data_folder / "knowledge-base"
+        if knowledge_base is not False and knowledge_base is not None:
+            self.knowledge_base = self.__init_knowledge_base(
+                knowledge_base if knowledge_base is not True else None
             )
-        elif isinstance(knowledge_base, str):
-            from agentia.retrieval import KnowledgeBase
-
-            self.knowledge_base = KnowledgeBase(knowledge_base)
-        elif knowledge_base is None or knowledge_base is False:
-            self.knowledge_base = None
-        else:
-            self.knowledge_base = knowledge_base
-        if self.knowledge_base is not None:
-            self.__init_knowledge_base()
         # Init memory
         self.__init_memory()
         # Init history and backend
@@ -417,22 +408,43 @@ class Agent:
         for colleague in colleagues:
             self.__add_colleague(colleague)
 
-    def __init_knowledge_base(self):
-        if self.knowledge_base is None:
-            return
-        # Load global documents
-        docs = self.agent_data_folder / "knowledge-base" / "docs"
-        docs.mkdir(parents=True, exist_ok=True)
-        from agentia.retrieval import VectorStore
+    def __init_knowledge_base(
+        self, source: Union["KnowledgeBase", Path, None]
+    ) -> "KnowledgeBase":
+        from agentia.retrieval import KnowledgeBase
 
-        global_vector_store = VectorStore(self.agent_data_folder / "knowledge-base")
+        # Get session store persist path
+        session_store = self.session_data_folder / "knowledge-base"
+        session_store.mkdir(parents=True, exist_ok=True)
+        # Load knowledge base
+        if isinstance(source, KnowledgeBase):
+            # Load a pre-existing knowledge base
+            knowledge_base = source
+            knowledge_base.add_session_store(session_store)
+        elif isinstance(source, Path):
+            # Load knowledge base from a collection of documents
+            persist_dir = self.agent_data_folder / "knowledge-base"
+            knowledge_base = KnowledgeBase(
+                global_store=persist_dir,
+                global_docs=source,
+                session_store=session_store,
+            )
+        else:
+            # Create a new knowledge base or load a pre-existing one
+            knowledge_base = KnowledgeBase(
+                global_store=self.agent_data_folder / "knowledge-base",
+                session_store=session_store,
+            )
+        # Update instructions
+        global_vector_store = knowledge_base.vector_stores["global"]
         if len(global_vector_store.initial_files or []) > 0:
-            self.knowledge_base.add_vector_store("global", global_vector_store)
             files = global_vector_store.initial_files or []
             if self.__instructions is not None:
                 self.__instructions += f"\n\nFILES: {', '.join(files)}"
             else:
                 self.__instructions = f"FILES: {', '.join(files)}"
+
+        # File search tool
 
         agent = self
 
@@ -456,6 +468,8 @@ class Agent:
             return response
 
         self.__tools._add_file_search_tool(file_search)
+
+        return knowledge_base
 
     def __init_memory(self):
         from .plugins import MemoryPlugin
@@ -543,7 +557,7 @@ class Agent:
             return
         if self.knowledge_base is None:
             raise ValueError("Knowledge base is disabled.")
-        self.knowledge_base.add_documents(files)
+        self.knowledge_base.add_temporary_documents(files)
 
     @property
     def history(self) -> History:
