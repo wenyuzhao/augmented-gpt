@@ -185,12 +185,6 @@ class Agent:
             provider = "openrouter"
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
-        self.__user_consent_handler: UserConsentHandler | None = None
-        self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
-        self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
-        self.__on_communication_start: Callable[[CommunicationEvent], Any] | None = None
-        self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
-        self.__on_client_tool_call: Callable[[str, Any], Any] | None = None
         self.context: Any = None
         self.original_config: Any = None
         self.agent_data_folder = _get_global_cache_dir() / "agents" / f"{self.id}"
@@ -201,6 +195,13 @@ class Agent:
         self.session_data_folder.mkdir(parents=True, exist_ok=True)
         self.__tools = ToolRegistry(self, tools)
         self.__instructions = instructions
+        # Event handlers
+        self.__user_consent_handler: UserConsentHandler | None = None
+        self.__on_tool_start: Callable[[ToolCallEvent], Any] | None = None
+        self.__on_tool_end: Callable[[ToolCallEvent], Any] | None = None
+        self.__on_communication_start: Callable[[CommunicationEvent], Any] | None = None
+        self.__on_communication_end: Callable[[CommunicationEvent], Any] | None = None
+        self.__on_client_tool_call: Callable[[str, Any], Any] | None = None
         # Init colleagues
         if colleagues is not None and len(colleagues) > 0:
             self.__init_cooperation(colleagues)
@@ -214,7 +215,20 @@ class Agent:
         self.__init_memory()
         # Init history and backend
         self.__history = History(instructions=self.__instructions)
-        if provider == "openai":
+        if provider == "openai" and model in [
+            "gpt-4o-realtime-preview",
+            "gpt-4o-mini-realtime-preview",
+        ]:
+            from .llm.openai_rt import OpenAIRealtimeBackend
+
+            self.__backend: LLMBackend = OpenAIRealtimeBackend(
+                model=model,
+                tools=self.__tools,
+                options=options or ModelOptions(),
+                history=self.__history,
+                api_key=api_key,
+            )
+        elif provider == "openai":
             from .llm.openai import OpenAIBackend
 
             self.__backend: LLMBackend = OpenAIBackend(
@@ -287,27 +301,38 @@ class Agent:
             return result
         return True
 
+    def on_response_start(self, listener: Callable[[str], Any]):
+        """Fire when a response starts"""
+        self.__on_response_start = listener
+        return listener
+
     def on_user_consent(self, listener: UserConsentHandler):
+        """Fire when user consent is required"""
         self.__user_consent_handler = listener
         return listener
 
     def on_tool_start(self, listener: Callable[[ToolCallEvent], Any]):
+        """Fire when a tool call starts"""
         self.__on_tool_start = listener
         return listener
 
     def on_tool_end(self, listener: Callable[[ToolCallEvent], Any]):
+        """Fire when a tool call ends"""
         self.__on_tool_end = listener
         return listener
 
     def on_commuication_start(self, listener: Callable[[CommunicationEvent], Any]):
+        """Fire when a communication between agents starts"""
         self.__on_communication_start = listener
         return listener
 
     def on_commuication_end(self, listener: Callable[[CommunicationEvent], Any]):
+        """Fire when a communication between agents ends"""
         self.__on_communication_end = listener
         return listener
 
     def on_client_tool_call(self, listener: Callable[[str, Any], Any]):
+        """Fire when a client tool call is required"""
         self.__on_client_tool_call = listener
         return listener
 

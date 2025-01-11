@@ -8,7 +8,7 @@ ENCODING = tiktoken.encoding_for_model("gpt-4o-mini")
 
 class History:
     def __init__(self, instructions: str | None) -> None:
-        self.__instructions = instructions
+        self._instructions = instructions
         self.__messages: list[Message] = []
         self.reset()
 
@@ -21,8 +21,8 @@ class History:
 
     def reset(self):
         self.__messages = []
-        if self.__instructions is not None:
-            self.add(SystemMessage(self.__instructions))
+        if self._instructions is not None:
+            self.add(SystemMessage(self._instructions))
 
     def add(self, message: Message):
         # TODO: auto trim history

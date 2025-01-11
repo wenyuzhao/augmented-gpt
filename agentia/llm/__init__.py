@@ -72,11 +72,11 @@ class LLMBackend:
     ) -> ChatCompletion[MessageStream] | ChatCompletion[AssistantMessage]:
         if stream:
             return ChatCompletion(
-                self.tools._agent, self.__chat_completion(messages, stream=True)
+                self.tools._agent, self._chat_completion(messages, stream=True)
             )
         else:
             return ChatCompletion(
-                self.tools._agent, self.__chat_completion(messages, stream=False)
+                self.tools._agent, self._chat_completion(messages, stream=False)
             )
 
     async def _on_new_chat_message(self, msg: Message):
@@ -98,18 +98,16 @@ class LLMBackend:
         raise NotImplementedError
 
     @overload
-    async def __chat_completion(
-        self, messages: Sequence[Message], stream: Literal[False] = False
+    async def _chat_completion(
+        self, messages: Sequence[Message], stream: Literal[False]
     ) -> AsyncGenerator[AssistantMessage, None]: ...
 
     @overload
-    async def __chat_completion(
-        self, messages: Sequence[Message], stream: Literal[True] = True
+    async def _chat_completion(
+        self, messages: Sequence[Message], stream: Literal[True]
     ) -> AsyncGenerator[MessageStream, None]: ...
 
-    async def __chat_completion(
-        self, messages: Sequence[Message], stream: bool = False
-    ):
+    async def _chat_completion(self, messages: Sequence[Message], stream: bool):
         for m in messages:
             self.log.info(f"{m}")
             self.history.add(m)
