@@ -183,6 +183,11 @@ class Agent:
             provider = "openai"
         else:
             provider = "openrouter"
+        assert provider in [
+            "openai",
+            "openrouter",
+            "deepseek",
+        ], f"Unknown provider: {provider}"
         self.description = description
         self.colleagues: dict[str, "Agent"] = {}
         self.context: Any = None
@@ -219,6 +224,16 @@ class Agent:
             from .llm.openai import OpenAIBackend
 
             self.__backend: LLMBackend = OpenAIBackend(
+                model=model,
+                tools=self.__tools,
+                options=options or ModelOptions(),
+                history=self.__history,
+                api_key=api_key,
+            )
+        elif provider == "deepseek":
+            from .llm.deepseek import DeepSeekBackend
+
+            self.__backend: LLMBackend = DeepSeekBackend(
                 model=model,
                 tools=self.__tools,
                 options=options or ModelOptions(),

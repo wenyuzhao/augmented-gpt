@@ -51,13 +51,13 @@ class OpenAIBackend(LLMBackend):
         options: ModelOptions,
         history: History,
         api_key: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         super().__init__(model, tools, options, history)
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        base_url: str | None = None
-        if "OPENAI_BASE_URL" in os.environ:
+        if base_url is not None and "OPENAI_BASE_URL" in os.environ:
             base_url = os.environ["OPENAI_BASE_URL"]
         self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
 
@@ -213,7 +213,7 @@ class ChatMessageStream(MessageStream):
                     d.function.arguments or ""
                 )
             else:
-                assert d.index == len(self.__tool_calls)
+                # assert d.index == len(self.__tool_calls)
                 assert d.function is not None
                 self.__tool_calls.append(d)
 

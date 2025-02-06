@@ -5,7 +5,7 @@ from ..tools import ToolRegistry
 from .openai import OpenAIBackend
 
 
-class OpenRouterBackend(OpenAIBackend):
+class DeepSeekBackend(OpenAIBackend):
     def __init__(
         self,
         model: str,
@@ -14,8 +14,8 @@ class OpenRouterBackend(OpenAIBackend):
         history: History,
         api_key: str | None = None,
     ) -> None:
-        api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
         if not api_key:
-            raise ValueError("OPENROUTER_API_KEY environment variable is not set")
-        base_url = "https://openrouter.ai/api/v1"
+            raise ValueError("DEEPSEEK_API_KEY environment variable is not set")
+        base_url = "https://api.deepseek.com"
         super().__init__(model, tools, options, history, api_key, base_url)
