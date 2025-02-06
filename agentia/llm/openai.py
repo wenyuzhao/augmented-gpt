@@ -62,13 +62,11 @@ class OpenAIBackend(LLMBackend):
         self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     @overload
-    @override
     async def _chat_completion_request(
         self, messages: Sequence[Message], stream: Literal[False]
     ) -> AssistantMessage: ...
 
     @overload
-    @override
     async def _chat_completion_request(
         self, messages: Sequence[Message], stream: Literal[True]
     ) -> MessageStream: ...

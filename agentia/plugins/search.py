@@ -22,7 +22,9 @@ if TYPE_CHECKING:
     from dataforseo_client.models.serp_google_maps_live_advanced_response_info import (
         SerpGoogleMapsLiveAdvancedResponseInfo,
     )
-from dataforseo_client.models.serp_task_request_info import SerpTaskRequestInfo
+from dataforseo_client.models.serp_google_news_live_advanced_request_info import (
+    SerpGoogleNewsLiveAdvancedRequestInfo,
+)
 from dataforseo_client.models.work_hours import WorkHours
 from dataforseo_client.models.work_day_info import WorkDayInfo
 
@@ -82,7 +84,7 @@ class SearchPlugin(Plugin):
         """Perform Google News Search using the given keywords, to search news related to the given topics. Returning the top 5 search result in json format."""
         response = self.__api.google_news_live_advanced(
             [
-                SerpTaskRequestInfo(
+                SerpGoogleNewsLiveAdvancedRequestInfo(
                     language_code="en",
                     location_name=self.__country,
                     keyword=keywords,

@@ -215,20 +215,7 @@ class Agent:
         self.__init_memory()
         # Init history and backend
         self.__history = History(instructions=self.__instructions)
-        if provider == "openai" and model in [
-            "gpt-4o-realtime-preview",
-            "gpt-4o-mini-realtime-preview",
-        ]:
-            from .llm.openai_rt import OpenAIRealtimeBackend
-
-            self.__backend: LLMBackend = OpenAIRealtimeBackend(
-                model=model,
-                tools=self.__tools,
-                options=options or ModelOptions(),
-                history=self.__history,
-                api_key=api_key,
-            )
-        elif provider == "openai":
+        if provider == "openai":
             from .llm.openai import OpenAIBackend
 
             self.__backend: LLMBackend = OpenAIBackend(
