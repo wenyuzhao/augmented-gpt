@@ -57,9 +57,11 @@ class OpenAIBackend(LLMBackend):
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        if base_url is not None and "OPENAI_BASE_URL" in os.environ:
+        if base_url is None and "OPENAI_BASE_URL" in os.environ:
             base_url = os.environ["OPENAI_BASE_URL"]
         self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.extra_headers: dict[str, str] = {}
+        self.extra_body: dict[str, Any] = {}
 
     @overload
     async def _chat_completion_request(
@@ -90,10 +92,20 @@ class OpenAIBackend(LLMBackend):
             else:
                 raise NotImplementedError("Functions are not supported")
         if stream:
-            response = await self.client.chat.completions.create(**args, stream=True)
+            response = await self.client.chat.completions.create(
+                **args,
+                extra_headers=self.extra_headers,
+                extra_body=self.extra_body,
+                stream=True
+            )
             return ChatMessageStream(response)
         else:
-            response = await self.client.chat.completions.create(**args, stream=False)
+            response = await self.client.chat.completions.create(
+                **args,
+                extra_headers=self.extra_headers,
+                extra_body=self.extra_body,
+                stream=False
+            )
             if response.choices is None:
                 print(response)
                 raise RuntimeError("response.choices is None")

@@ -196,8 +196,6 @@ class Agent:
         self.session_data_folder = (
             _get_global_cache_dir() / "sessions" / f"{self.session_id}"
         )
-        self.agent_data_folder.mkdir(parents=True, exist_ok=True)
-        self.session_data_folder.mkdir(parents=True, exist_ok=True)
         self.__tools = ToolRegistry(self, tools)
         self.__instructions = instructions
         # Event handlers
