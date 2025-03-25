@@ -238,7 +238,7 @@ class ChatMessageStream(MessageStream):
                 assert d.function is not None
                 self.__tool_calls.append(d)
 
-    async def __anext__impl(self) -> str:
+    async def __anext_impl(self) -> str:
         if self.__final_message is not None:
             raise StopAsyncIteration()
         try:
@@ -275,7 +275,7 @@ class ChatMessageStream(MessageStream):
                 self.__message.content += leftover
                 return leftover
         while True:
-            delta = await self.__anext__impl()
+            delta = await self.__anext_impl()
             if len(delta) > 0:
                 return delta
 
@@ -283,14 +283,16 @@ class ChatMessageStream(MessageStream):
         return self
 
     async def wait_for_completion(self) -> AssistantMessage:
-        assert isinstance(self.reasoning, ReasoningMessageStreamImpl)
-        if self.__final_message is not None:
-            self.__final_message.reasoning = self.__final_reasoning
-            return self.__final_message
+        if self.reasoning:
+            assert isinstance(self.reasoning, ReasoningMessageStreamImpl)
+            if self.__final_message is not None:
+                self.__final_message.reasoning = self.__final_reasoning
+                return self.__final_message
         async for _ in self:
             ...
         assert self.__final_message is not None
-        self.__final_message.reasoning = self.__final_reasoning
+        if self.reasoning:
+            self.__final_message.reasoning = self.__final_reasoning
         return self.__final_message
 
 
@@ -316,7 +318,7 @@ class ReasoningMessageStreamImpl(ReasoningMessageStream):
             self.__message += reasoning or ""
             self.__delta = chunk.choices[0].delta.content
             content = chunk.choices[0].delta.content
-            if content is not None and content != "":
+            if content is not None and content != "" and (reasoning or "") == "":
                 raise StopAsyncIteration()
             return reasoning or ""
         except StopAsyncIteration:

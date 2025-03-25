@@ -3,6 +3,7 @@ from agentia.history import History
 from . import ModelOptions
 from ..tools import ToolRegistry
 from .openai import OpenAIBackend
+import requests
 
 
 class OpenRouterBackend(OpenAIBackend):
@@ -23,5 +24,21 @@ class OpenRouterBackend(OpenAIBackend):
             self.extra_body["provider"] = {
                 "order": [x.strip() for x in providers.strip().split(",")]
             }
-        self.has_reasoning = True
+        self.has_reasoning = self.__model_has_reasoning(model)
         self.extra_body["transforms"] = ["middle-out"]
+
+    def __model_has_reasoning(self, model: str):
+        global _REASONING_MODELS
+        if model in _REASONING_MODELS:
+            return _REASONING_MODELS[model]
+        res = requests.get(f"https://openrouter.ai/api/v1/models/{model}/endpoints")
+        endpoints = res.json().get("data", {}).get("endpoints", [])
+        has_reasoning = False
+        if len(endpoints) > 0:
+            e = endpoints[0]
+            has_reasoning = "include_reasoning" in e.get("supported_parameters", [])
+        _REASONING_MODELS[model] = has_reasoning
+        return has_reasoning
+
+
+_REASONING_MODELS: dict[str, bool] = {}

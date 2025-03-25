@@ -4,6 +4,7 @@ from llama_index.core.query_engine import CitationQueryEngine
 import os
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.schema import NodeWithScore
+from llama_index.core.base.response.schema import Response
 from agentia.utils.retrieval.vector_store import VectorStore, is_file_supported
 from agentia.utils.retrieval.retriever import TOP_K, MultiRetriever
 
@@ -58,7 +59,7 @@ class KnowledgeBase:
         response = await self.__query_engine.aquery(query)
         if len(response.source_nodes) == 0:
             return "ERROR: No results found because the knowledge base is empty."
-        formatted_response = response.response + "\n\n\nSOURCES:\n\n"
+        formatted_response = str(response) + "\n\n\nSOURCES:\n\n"
         for i, node in enumerate(response.source_nodes):
             assert isinstance(node, NodeWithScore)
             file_name = node.node.metadata.get("file_name")
