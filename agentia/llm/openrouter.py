@@ -23,4 +23,5 @@ class OpenRouterBackend(OpenAIBackend):
             self.extra_body["provider"] = {
                 "order": [x.strip() for x in providers.strip().split(",")]
             }
+        self.has_reasoning = True
         self.extra_body["transforms"] = ["middle-out"]

@@ -13,6 +13,7 @@ from ..message import (
     AssistantMessage,
     Message,
     MessageStream,
+    ReasoningMessageStream,
     ToolCall,
     FunctionCall,
 )
@@ -62,6 +63,7 @@ class OpenAIBackend(LLMBackend):
         self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.extra_headers: dict[str, str] = {}
         self.extra_body: dict[str, Any] = {}
+        self.has_reasoning = False
 
     @overload
     async def _chat_completion_request(
@@ -96,15 +98,16 @@ class OpenAIBackend(LLMBackend):
                 **args,
                 extra_headers=self.extra_headers,
                 extra_body=self.extra_body,
-                stream=True
+                stream=True,
             )
-            return ChatMessageStream(response)
+            cms = ChatMessageStream(response, self.has_reasoning)
+            return cms
         else:
             response = await self.client.chat.completions.create(
                 **args,
                 extra_headers=self.extra_headers,
                 extra_body=self.extra_body,
-                stream=False
+                stream=False,
             )
             if response.choices is None:
                 print(response)
@@ -152,8 +155,11 @@ class OpenAIBackend(LLMBackend):
     def __ccm_to_message(self, m: ChatCompletionMessage) -> "AssistantMessage":
         assert m.role == "assistant"
         assert m.function_call is None
+        reasoning = m.to_dict().get("reasoning")
+        assert reasoning is None or isinstance(reasoning, str)
         return AssistantMessage(
             content=m.content,
+            reasoning=reasoning,
             tool_calls=(
                 [
                     ToolCall(
@@ -191,12 +197,15 @@ class ChatMessageStream(MessageStream):
     def __init__(
         self,
         response: openai.AsyncStream[ChatCompletionChunk],
+        has_reasoning: bool,
     ):
-        self.__response = response
         self.__aiter = response.__aiter__()
         self.__message = AssistantMessage()
         self.__tool_calls: list[ChoiceDeltaToolCall] = []
         self.__final_message: AssistantMessage | None = None
+        self.__final_reasoning: str | None = None
+        if has_reasoning:
+            self.reasoning = ReasoningMessageStreamImpl(response)
 
     def __get_final_merged_tool_calls(self) -> list[ToolCall]:
         return [
@@ -253,6 +262,18 @@ class ChatMessageStream(MessageStream):
         return delta.content or ""
 
     async def __anext__(self) -> str:
+        if self.reasoning is not None and not self.__final_reasoning:
+            async for _ in self.reasoning:
+                ...
+            assert isinstance(self.reasoning, ReasoningMessageStreamImpl)
+            self.__final_reasoning = await self.reasoning.wait_for_completion()
+            if self.reasoning.leftover:
+                leftover = self.reasoning.leftover
+                self.reasoning.leftover = None
+                if self.__message.content is None:
+                    self.__message.content = ""
+                self.__message.content += leftover
+                return leftover
         while True:
             delta = await self.__anext__impl()
             if len(delta) > 0:
@@ -262,8 +283,57 @@ class ChatMessageStream(MessageStream):
         return self
 
     async def wait_for_completion(self) -> AssistantMessage:
+        assert isinstance(self.reasoning, ReasoningMessageStreamImpl)
         if self.__final_message is not None:
+            self.__final_message.reasoning = self.__final_reasoning
             return self.__final_message
+        async for _ in self:
+            ...
+        assert self.__final_message is not None
+        self.__final_message.reasoning = self.__final_reasoning
+        return self.__final_message
+
+
+class ReasoningMessageStreamImpl(ReasoningMessageStream):
+    def __init__(
+        self,
+        response: openai.AsyncStream[ChatCompletionChunk],
+    ):
+        self.__aiter = response.__aiter__()
+        self.__message = ""
+        self.__final_message: str | None = None
+        self.__delta = None
+        self.leftover: str | None = None
+
+    async def __anext_impl(self) -> str:
+        if self.__final_message is not None:
+            raise StopAsyncIteration()
+        try:
+            chunk = await self.__aiter.__anext__()
+            delta = chunk.choices[0].delta.to_dict()
+            reasoning = delta.get("reasoning")
+            assert reasoning is None or isinstance(reasoning, str)
+            self.__message += reasoning or ""
+            self.__delta = chunk.choices[0].delta.content
+            content = chunk.choices[0].delta.content
+            if content is not None and content != "":
+                raise StopAsyncIteration()
+            return reasoning or ""
+        except StopAsyncIteration:
+            self.__final_message = self.__message
+            self.leftover = self.__delta
+            raise StopAsyncIteration()
+
+    async def __anext__(self) -> str:
+        while True:
+            delta = await self.__anext_impl()
+            if len(delta) > 0:
+                return delta
+
+    def __aiter__(self) -> AsyncIterator[str]:
+        return self
+
+    async def wait_for_completion(self) -> str:
         async for _ in self:
             ...
         assert self.__final_message is not None
