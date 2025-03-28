@@ -107,7 +107,9 @@ class LLMBackend:
         self, messages: Sequence[Message], stream: Literal[True]
     ) -> AsyncGenerator[MessageStream, None]: ...
 
-    async def _chat_completion(self, messages: Sequence[Message], stream: bool):
+    async def _chat_completion(
+        self, messages: Sequence[Message], stream: bool
+    ) -> AsyncGenerator[AssistantMessage | MessageStream, None]:
         for m in messages:
             self.log.info(f"{m}")
             self.history.add(m)

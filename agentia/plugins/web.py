@@ -14,8 +14,9 @@ class WebPlugin(Plugin):
         with BytesIO(content) as f:
             ext = file_ext if file_ext.startswith(".") else "." + file_ext
             f.name = str(uuid.uuid4()) + ext
-            self.agent.knowledge_base.add_document(f)
-            file_name = f.name
+            # self.agent.knowledge_base.add_document(f)
+            # file_name = f.name
+            raise NotImplementedError
         return {
             "file_name": file_name,
             "hint": f"This is a .{file_ext} file and it is embeded in the knowledge base. Use _file_search to query the content.",
