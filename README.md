@@ -7,12 +7,15 @@
 from agentia import Agent
 from typing import Annotated
 
+# Define a tool as a python function
 def get_weather(location: Annotated[str, "The city name"]):
     """Get the current weather in a given location"""
     return { "temperature": 72 }
 
+# Create an agent
 agent = Agent(tools=[get_weather])
 
+# Run the agent with the tool
 response = await agent.chat_completion("What is the weather like in boston?")
 
 print(response)
