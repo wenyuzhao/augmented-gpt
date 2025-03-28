@@ -6,11 +6,13 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: pipx install poetry
-      - uses: actions/setup-python@v4
-        with:
-          cache: "poetry"
-      - run: poetry install
-      - run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
-      - uses: jakebailey/pyright-action@v1
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install UV
+        uses: astral-sh/setup-uv@v5
+      - name: Install Packages
+        run: |
+          uv venv
+          uv run pip install pyright
+      - name: Run Pyright
+        run: uv run pyright
