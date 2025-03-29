@@ -30,28 +30,36 @@ class Plugin:
     def on_new_chat_message(self, msg: Message) -> Any: ...
 
 
-from .calc import *
-from .clock import *
-from .code import *
-from .memory import *
-from .mstodo import *
-from .search import *
-from .dalle import *
-from .vision import *
-from .web import *
+def __import_plugins() -> dict[str, Type[Plugin]]:
+    try:
+        from . import (
+            calc,
+            clock,
+            code,
+            memory,
+            mstodo,
+            search,
+            dalle,
+            vision,
+            web,
+        )
+
+        return {
+            "calc": calc.CalculatorPlugin,
+            "clock": clock.ClockPlugin,
+            "code": code.CodePlugin,
+            "memory": memory.MemoryPlugin,
+            "mstodo": mstodo.MSToDoPlugin,
+            "search": search.SearchPlugin,
+            "dalle": dalle.DallEPlugin,
+            "vision": vision.VisionPlugin,
+            "web": web.WebPlugin,
+        }
+    except ImportError:
+        return {}
 
 
-ALL_PLUGINS: dict[str, Type[Plugin]] = {
-    "clock": ClockPlugin,
-    "calc": CalculatorPlugin,
-    "code": CodePlugin,
-    "mstodo": MSToDoPlugin,
-    "memory": MemoryPlugin,
-    "search": SearchPlugin,
-    "dalle": DallEPlugin,
-    "vision": VisionPlugin,
-    "web": WebPlugin,
-}
+ALL_PLUGINS = __import_plugins()
 
 
 def register_plugin(name: str) -> Callable[[Type[Plugin]], Type[Plugin]]:

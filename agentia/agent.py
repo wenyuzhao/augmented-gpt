@@ -494,10 +494,8 @@ class Agent:
         return knowledge_base
 
     def __init_memory(self):
-        from .plugins import MemoryPlugin
-
         mem_plugin = self.get_plugin("Memory")
-        if mem_plugin is None or not isinstance(mem_plugin, MemoryPlugin):
+        if mem_plugin is None:
             return
 
         if not (self.agent_data_folder / "memory").exists():

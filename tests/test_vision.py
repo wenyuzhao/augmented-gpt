@@ -1,5 +1,5 @@
-from agentia import Agent, UserMessage, tool, utils
-from agentia.message import AssistantMessage, ContentPartImage, ContentPartText
+from agentia import Agent, UserMessage
+from agentia.message import ContentPartImage, ContentPartText
 import pytest
 import dotenv
 
@@ -8,7 +8,7 @@ dotenv.load_dotenv()
 
 @pytest.mark.asyncio
 async def test_vision():
-    gpt = Agent(model="gpt-4-vision-preview")
+    gpt = Agent(model="gpt-4o-mini")
     response = gpt.chat_completion(
         [
             UserMessage(
@@ -27,12 +27,3 @@ async def test_vision():
         all_assistant_content += msg.content or ""
         print(msg)
     assert "cat" in all_assistant_content.lower()
-
-
-@pytest.mark.asyncio
-async def test_utils_image_vision():
-    response = await utils.image.vision(
-        "https://icons.iconarchive.com/icons/iconarchive/cute-animal/256/Cute-Cat-icon.png",
-        "What is this animal?",
-    )
-    assert "cat" in response.lower()

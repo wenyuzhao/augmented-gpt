@@ -229,41 +229,6 @@ class ToolRegistry:
         functions = [v.to_json() for (k, v) in self.__functions.items()]
         return [{"type": "function", "function": f} for f in functions]
 
-    def to_gpts_json(self, url: str) -> Any:
-        while url.endswith("/"):
-            url = url[:-1]
-        functions: list[Any] = [v.to_json() for (k, v) in self.__functions.items()]
-        return {
-            "openapi": "3.1.0",
-            "info": {
-                "title": self._agent.name or "",
-                "description": self._agent.description or "",
-                "version": "v1.0.0",
-            },
-            "servers": [{"url": url}],
-            "paths": {
-                f"/actions/{x['name']}": {
-                    "get": {
-                        "description": x["description"],
-                        "operationId": x["name"],
-                        "parameters": [
-                            {
-                                "name": name,
-                                "in": "query",
-                                "description": p["description"],
-                                "required": name in x["parameters"]["required"],
-                                "schema": {"type": p["type"]},
-                            }
-                            for name, p in x["parameters"]["properties"].items()
-                        ],
-                        "deprecated": False,
-                    }
-                }
-                for x in functions
-            },
-            "components": {"schemas": {}},
-        }
-
     def __filter_args(self, callable: Callable[..., Any], args: Any):
         from .agent import Agent
 
@@ -278,9 +243,9 @@ class ToolRegistry:
                         p.default if p.default != inspect.Parameter.empty else None
                     )
                     p_args.append(args[p.name] if p.name in args else default)
-                case (
-                    Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY
-                ) if p.annotation == Agent:
+                case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY if (
+                    p.annotation == Agent
+                ):
                     kw_args[p.name] = self._agent
                 case Parameter.POSITIONAL_OR_KEYWORD | Parameter.KEYWORD_ONLY:
                     if p.name == "__context__" and p.name not in args:
